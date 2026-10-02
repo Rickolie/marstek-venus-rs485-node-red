@@ -1,0 +1,15 @@
+
+
+Inputs:
+- Personal nodered code for:
+-- Heat pump control
+-- Boiler control
+
+Objectives:
+1 Rewrite personal code in the same style and structure as the repo.
+2 Add a strategy for boiler to use the lowest dynamic prices in case there will be not enough solar to heat the boiler.
+3 In the future, the dutch government might add timeslots with different tax rates. Please add a strategy for heat pump and boiler control that takes this in combination with the dynamcic prices into account.
+4 Add an option to increase the ventilation to maximum in case the outside temperature is above 10C, but lower than the inside temperature, but the inside temperature is above 22 degrees
+5 Add cooling mode if the outside temperature will be above 24C. Minimum water temperature should be 19C. The water temp water temperature should be interpolated: 19C inside at 22C outside temperature and 22C at 40C outside temp
+
+
