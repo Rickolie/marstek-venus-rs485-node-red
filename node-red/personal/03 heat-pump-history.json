@@ -1,256 +1,159 @@
 [
     {
-        "id": "b8aee701bcfbd622",
+        "id": "637c08aefe059a43",
         "type": "tab",
         "label": "Heat Pump History",
         "disabled": false,
-        "info": "Daily averages of the heat pump, calculated from the Home Assistant history",
+        "info": "Daily averages of the heat pump, calculated from all Home Assistant history",
         "env": []
     },
     {
-        "id": "7f7b6f01681af331",
         "type": "comment",
         "name": "Heat Pump History (readme)",
-        "x": 150,
+        "info": "# Heat pump history\n\nCalculates per day, from **all** Home Assistant history:\n- average outside temperature `sensor.sparrow_p60_heat_pump_outside_temperature`\n- average water target temperature `sensor.sparrow_p60_heat_pump_water_target_temperature`\n- average power and energy `sensor.sparrow_p60_heat_pump`\n- average COP `sensor.heatpump_cop_not_below_0`, COP = 0 is excluded\n\nOnly days on which the heat pump has been used are taken into account\n(see the settings at the top of `Calculate daily averages`).\n\n## Data\n- **State history**: exact, time-weighted. Only as far back as the recorder keeps it (`purge_keep_days`, default 10 days).\n- **Long-term statistics**: hourly mean/min/max, kept forever. Fills in the older days.\n  Only available for sensors with a `state_class`, see `heat_pump_feedforward.yaml`.\n\n## Output\n- `global.heat_pump_history` (incl. the list of days) for use in other flows\n- Home Assistant event `heat_pump_history` -> `sensor.heat_pump_history`\n\n`fit` gives the relation to the outside temperature, used as heating curve by the feedforward:\n`value = slope * outside_temp + intercept`\n\n`curve` gives the averages per whole °C outside temperature.",
+        "x": 160,
         "y": 40,
         "wires": [],
-        "info": "# Heat pump history\n\nCalculates per day, from the Home Assistant history:\n- average outside temperature `sensor.sparrow_p60_heat_pump_outside_temperature`\n- average water target temperature `sensor.sparrow_p60_heat_pump_water_target_temperature`\n- average power and energy `sensor.sparrow_p60_heat_pump`\n- average COP `sensor.heatpump_cop_not_below_0`, COP = 0 is excluded\n\nOnly days on which the heat pump has been used are taken into account\n(see the settings at the top of `Calculate daily averages`).\n\nAll averages are time-weighted: a state counts for as long as it was valid.\n\n## Output\n- `global.heat_pump_history` for use in other flows\n- Home Assistant event `heat_pump_history`\n\n`fit` gives the relation to the outside temperature:\n`value = slope * outside_temp + intercept`\n\n## History period\nThe `Get history` nodes fetch the last 30 days. Home Assistant keeps\n10 days by default, raise `recorder: purge_keep_days` for a longer period.",
-        "z": "b8aee701bcfbd622"
+        "id": "97cc30e835d6399d",
+        "z": "637c08aefe059a43"
     },
     {
-        "id": "a0d44fdfcfff4419",
         "type": "group",
         "name": "Trigger",
         "style": {
             "label": true
         },
         "nodes": [
-            "4d79019e10380b77",
-            "482f3ad97356bc5d",
-            "b9c3c9058ff80cbe"
+            "c9c2b3f91b34f94b",
+            "e33f0fe238eb8089"
         ],
         "x": 14,
         "y": 79,
-        "w": 252,
-        "h": 162,
-        "z": "b8aee701bcfbd622"
+        "w": 172,
+        "h": 122,
+        "id": "92487d0d197600bf",
+        "z": "637c08aefe059a43"
     },
     {
-        "id": "88d0abcf30914e90",
         "type": "group",
-        "name": "Get history",
+        "name": "Get all history",
         "style": {
             "label": true
         },
         "nodes": [
-            "5d139d878e8c017a",
-            "5671ea3dfb27916c",
-            "b2cb662c7e7cd4ea",
-            "47fa54b2d2f7e29e",
-            "edfbdf222cbbca01"
+            "97aee2703b8a6177",
+            "c8c1aecf46a778eb"
         ],
-        "x": 294,
+        "x": 214,
         "y": 79,
-        "w": 252,
-        "h": 242,
-        "z": "b8aee701bcfbd622"
+        "w": 232,
+        "h": 122,
+        "id": "dc8d460d15034b92",
+        "z": "637c08aefe059a43"
     },
     {
-        "id": "7e81ab2edfa8890d",
         "type": "group",
         "name": "Calculate",
         "style": {
             "label": true
         },
         "nodes": [
-            "abbf3ba0322bc92e",
-            "de88fb5ced39bb43",
-            "66c8db603e02569c"
+            "12470bc15a42b996",
+            "3399b6f223767123",
+            "0a9b923c09d69e99"
         ],
-        "x": 574,
+        "x": 474,
         "y": 79,
-        "w": 312,
+        "w": 352,
         "h": 162,
-        "z": "b8aee701bcfbd622"
+        "id": "58f6ac0df679b818",
+        "z": "637c08aefe059a43"
     },
     {
-        "id": "1294b1ce773bb499",
-        "type": "group",
-        "name": "Unhandled exceptions",
-        "style": {
-            "label": true
-        },
-        "nodes": [
-            "40c11f96d54a7599",
-            "3923f017dc401974",
-            "7fa65567a2b4fad9"
-        ],
-        "x": 14,
-        "y": 359,
-        "w": 252,
-        "h": 82,
-        "z": "b8aee701bcfbd622"
-    },
-    {
-        "id": "abbf3ba0322bc92e",
         "type": "function",
         "name": "Calculate daily averages",
-        "func": "// logger, usage: log(this, \"\");\nconst log = global.get('logger');\n\n// 1.  Settings\n// A day only counts when the heat pump has actually been used on that day.\nconst MIN_RUN_POWER_W = 50;      // power above this value counts as 'running'\nconst MIN_DAY_ENERGY_KWH = 0.5;  // a day with less energy counts as 'not used'\nconst MIN_DAY_COVERAGE = 0.9;    // fraction of the day the sensors must have valid data\n\n// 2.  Input\n// Each history list is an array of HA states, as delivered by the 'Get history' nodes\nconst history = msg.history || {};\nconst SERIES = [\"outside\", \"water\", \"power\", \"cop\"];\n\nfor (const key of SERIES) {\n    if (!Array.isArray(history[key]) || history[key].length === 0) {\n        log(this, `History for '${key}' missing or empty`, \"warn\");\n        node.status({ fill: \"red\", shape: \"ring\", text: `No history: ${key}` });\n        return null;\n    }\n}\n\nconst DAY_MS = 86_400_000;\nconst now = Date.now();\n\n// Local midnight of the day containing timestamp t\nconst dayStart = (t) => {\n    const d = new Date(t);\n    return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();\n};\nconst nextDayStart = (t) => {\n    const d = new Date(dayStart(t));\n    return new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1).getTime();\n};\nconst dayKey = (t) => {\n    const d = new Date(t);\n    const pad = (v) => String(v).padStart(2, \"0\");\n    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;\n};\nconst round = (v, digits) => (v === null || !isFinite(v)) ? null : Number(v.toFixed(digits));\n\n// Convert HA states into time segments [start, end) with a numeric value.\n// A state is valid until the next state change. Unknown / unavailable states become gaps.\nfunction toSegments(states) {\n    const points = states\n        .map(s => ({\n            t: new Date(s.last_changed ?? s.last_updated ?? (s.lu * 1000)).getTime(),\n            v: parseFloat(s.state ?? s.s),\n        }))\n        .filter(p => isFinite(p.t))\n        .sort((a, b) => a.t - b.t);\n\n    const segments = [];\n    points.forEach((p, i) => {\n        const end = (i < points.length - 1) ? points[i + 1].t : now;\n        if (isFinite(p.v) && end > p.t) segments.push({ start: p.t, end: end, v: p.v });\n    });\n    return segments;\n}\n\n// Split segments on local midnight and accumulate time-weighted sums per day.\n// `include` decides which values take part in the average (e.g. skip COP = 0).\nfunction perDay(segments, include = () => true) {\n    const days = {};\n    segments.forEach(seg => {\n        let start = seg.start;\n        while (start < seg.end) {\n            const end = Math.min(seg.end, nextDayStart(start));\n            const key = dayKey(start);\n            const day = days[key] ??= { sum: 0, ms: 0, covered_ms: 0, above_ms: 0 };\n            const ms = end - start;\n            day.covered_ms += ms;\n            if (include(seg.v)) {\n                day.sum += seg.v * ms;\n                day.ms += ms;\n            }\n            if (seg.v > MIN_RUN_POWER_W) day.above_ms += ms;\n            start = end;\n        }\n    });\n    return days;\n}\n\n// 3.  Process\nconst outside = perDay(toSegments(history.outside));\nconst water = perDay(toSegments(history.water));\nconst power = perDay(toSegments(history.power));\nconst cop = perDay(toSegments(history.cop), v => v > 0); // do not average the 0 values\n\nconst today = dayKey(now);\nconst rows = [];\nlet skipped = 0;\n\nObject.keys(power).sort().forEach(key => {\n    if (key === today) return; // incomplete day\n\n    const p = power[key];\n    const o = outside[key];\n    const w = water[key];\n    const c = cop[key];\n\n    // Data must cover (almost) the full day, otherwise the averages are not representative\n    if (!o || !w || p.covered_ms < MIN_DAY_COVERAGE * DAY_MS || o.covered_ms < MIN_DAY_COVERAGE * DAY_MS) {\n        skipped++;\n        return;\n    }\n\n    // Average over the full day: hours without data are assumed to match the measured hours\n    const powerAvg = p.sum / p.ms;\n    const energyKwh = powerAvg * 24 / 1000;\n\n    // Only use days on which the heat pump has been used\n    if (energyKwh < MIN_DAY_ENERGY_KWH || p.above_ms === 0) {\n        skipped++;\n        return;\n    }\n\n    rows.push({\n        date: key,\n        outside_temp_avg: round(o.sum / o.ms, 1),          // °C\n        water_target_temp_avg: round(w.sum / w.ms, 1),     // °C\n        power_avg: round(powerAvg, 0),                     // W, over the full day\n        energy: round(energyKwh, 2),                       // kWh\n        running_hours: round(p.above_ms / 3_600_000, 1),   // h\n        cop_avg: c && c.ms > 0 ? round(c.sum / c.ms, 2) : null, // excludes COP = 0\n    });\n});\n\n// Least squares fit y = slope * outside + intercept, gives the relation to outside temperature\nfunction fit(key) {\n    const pts = rows.filter(r => r[key] !== null && r.outside_temp_avg !== null);\n    const n = pts.length;\n    if (n < 2) return null;\n    const mx = pts.reduce((s, r) => s + r.outside_temp_avg, 0) / n;\n    const my = pts.reduce((s, r) => s + r[key], 0) / n;\n    const sxx = pts.reduce((s, r) => s + (r.outside_temp_avg - mx) ** 2, 0);\n    if (sxx === 0) return null;\n    const sxy = pts.reduce((s, r) => s + (r.outside_temp_avg - mx) * (r[key] - my), 0);\n    const slope = sxy / sxx;\n    return { slope: round(slope, 3), intercept: round(my - slope * mx, 2), days: n };\n}\n\nconst average = (key) => {\n    const values = rows.map(r => r[key]).filter(v => v !== null);\n    return values.length ? round(values.reduce((s, v) => s + v, 0) / values.length, 2) : null;\n};\n\n// 4.  Output\nmsg.heat_pump_history = {\n    updated: new Date(now).toISOString(),\n    days_used: rows.length,\n    days_skipped: skipped,\n    averages: {\n        outside_temp_avg: average(\"outside_temp_avg\"),\n        water_target_temp_avg: average(\"water_target_temp_avg\"),\n        power_avg: average(\"power_avg\"),\n        energy: average(\"energy\"),\n        cop_avg: average(\"cop_avg\"),\n    },\n    // per °C outside temperature: value = slope * outside_temp + intercept\n    fit: {\n        water_target_temp: fit(\"water_target_temp_avg\"),\n        power: fit(\"power_avg\"),\n        cop: fit(\"cop_avg\"),\n    },\n    days: rows.sort((a, b) => a.outside_temp_avg - b.outside_temp_avg),\n};\n\nglobal.set(\"heat_pump_history\", msg.heat_pump_history);\ndelete msg.history; // raw history is large, do not pass it on\n\nlog(this, `${rows.length} days used, ${skipped} skipped`);\nnode.status({ fill: \"green\", shape: \"dot\", text: `${rows.length} days | COP ${msg.heat_pump_history.averages.cop_avg ?? \"-\"}` });\n\nreturn msg;\n",
+        "func": "// logger, usage: log(this, \"\");\nconst log = global.get('logger');\n\n// 1.  Settings\n// A day only counts when the heat pump has actually been used on that day.\nconst MIN_RUN_POWER_W = 50;      // power above this value counts as 'running'\nconst MIN_DAY_ENERGY_KWH = 0.5;  // a day with less energy counts as 'not used'\nconst MIN_DAY_COVERAGE = 0.9;    // fraction of the day the sensors must have valid data\n\nconst ENTITY = {\n    outside: \"sensor.sparrow_p60_heat_pump_outside_temperature\",\n    water: \"sensor.sparrow_p60_heat_pump_water_target_temperature\",\n    power: \"sensor.sparrow_p60_heat_pump\",\n    cop: \"sensor.heatpump_cop_not_below_0\",\n};\n\n// 2.  Input\n// msg.history:    state history per entity_id (exact, only as far back as the recorder keeps it)\n// msg.statistics: hourly long-term statistics per entity_id (kept forever, mean/min/max per hour)\nconst history = msg.history || {};\nconst statistics = msg.statistics || {};\n\nconst DAY_MS = 86_400_000;\nconst HOUR_MS = 3_600_000;\nconst now = Date.now();\n\n// Local midnight of the day after timestamp t\nconst nextDayStart = (t) => {\n    const d = new Date(t);\n    return new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1).getTime();\n};\nconst dayKey = (t) => {\n    const d = new Date(t);\n    const pad = (v) => String(v).padStart(2, \"0\");\n    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;\n};\nconst toMs = (t) => typeof t === \"number\" ? (t < 1e12 ? t * 1000 : t) : new Date(t).getTime();\nconst round = (v, digits) => (v === null || v === undefined || !isFinite(v)) ? null : Number(v.toFixed(digits));\nconst today = dayKey(now);\n\n// 3a. State history: exact time-weighted averages\n// Convert HA states into time segments [start, end) with a numeric value.\n// A state is valid until the next state change. Unknown / unavailable states become gaps.\nfunction toSegments(states) {\n    const points = (states || [])\n        .map(s => ({\n            t: toMs(s.last_changed ?? s.lc ?? s.lu ?? s.last_updated), // full or minimal response\n            v: parseFloat(s.state ?? s.s),\n        }))\n        .filter(p => isFinite(p.t))\n        .sort((a, b) => a.t - b.t);\n\n    const segments = [];\n    points.forEach((p, i) => {\n        const end = (i < points.length - 1) ? points[i + 1].t : now;\n        if (isFinite(p.v) && end > p.t) segments.push({ start: p.t, end: end, v: p.v });\n    });\n    return segments;\n}\n\n// Split segments on local midnight and accumulate time-weighted sums per day.\n// `include` decides which values take part in the average (e.g. skip COP = 0).\nfunction historyPerDay(segments, include = () => true) {\n    const days = {};\n    segments.forEach(seg => {\n        let start = seg.start;\n        while (start < seg.end) {\n            const end = Math.min(seg.end, nextDayStart(start));\n            const day = days[dayKey(start)] ??= { sum: 0, ms: 0, covered_ms: 0, above_ms: 0 };\n            const ms = end - start;\n            day.covered_ms += ms;\n            if (include(seg.v)) {\n                day.sum += seg.v * ms;\n                day.ms += ms;\n            }\n            if (seg.v > MIN_RUN_POWER_W) day.above_ms += ms;\n            start = end;\n        }\n    });\n    return days;\n}\n\n// 3b. Long-term statistics: hourly means\n// The COP mean of an hour includes the 0 values while the heat pump is off. Hours with\n// min > 0 ran the full hour and give a clean COP; only when a day has none of those,\n// hours with mean > 0 are used (slightly too low COP).\nfunction statisticsPerDay(rows) {\n    const days = {};\n    (rows || []).forEach(r => {\n        const mean = parseFloat(r.mean);\n        if (!isFinite(mean)) return;\n        const day = days[dayKey(toMs(r.start))] ??= { hours: [] };\n        day.hours.push({ mean: mean, min: parseFloat(r.min), max: parseFloat(r.max) });\n    });\n    return days;\n}\nconst meanOf = (values) => values.length ? values.reduce((s, v) => s + v, 0) / values.length : null;\n\n// 3c. Build one row per day\nconst H = {\n    outside: historyPerDay(toSegments(history[ENTITY.outside])),\n    water: historyPerDay(toSegments(history[ENTITY.water])),\n    power: historyPerDay(toSegments(history[ENTITY.power])),\n    cop: historyPerDay(toSegments(history[ENTITY.cop]), v => v > 0), // do not average the 0 values\n};\nconst S = {\n    outside: statisticsPerDay(statistics[ENTITY.outside]),\n    water: statisticsPerDay(statistics[ENTITY.water]),\n    power: statisticsPerDay(statistics[ENTITY.power]),\n    cop: statisticsPerDay(statistics[ENTITY.cop]),\n};\n\n// Exact row from the state history, or undefined when the day is not fully covered\nfunction rowFromHistory(key) {\n    const p = H.power[key], o = H.outside[key], w = H.water[key], c = H.cop[key];\n    if (!p || !o || p.covered_ms < MIN_DAY_COVERAGE * DAY_MS || o.covered_ms < MIN_DAY_COVERAGE * DAY_MS) return undefined;\n    const powerAvg = p.sum / p.ms; // hours without data are assumed to match the measured hours\n    return {\n        date: key,\n        source: \"history\",\n        used: powerAvg * 24 / 1000 >= MIN_DAY_ENERGY_KWH && p.above_ms > 0,\n        outside_temp_avg: round(o.sum / o.ms, 1),\n        water_target_temp_avg: w && w.ms > 0 ? round(w.sum / w.ms, 1) : null,\n        power_avg: round(powerAvg, 0),\n        energy: round(powerAvg * 24 / 1000, 2),\n        running_hours: round(p.above_ms / HOUR_MS, 1),\n        cop_avg: c && c.ms > 0 ? round(c.sum / c.ms, 2) : null,\n    };\n}\n\n// Row from the hourly statistics, or undefined when the day is not fully covered\nfunction rowFromStatistics(key) {\n    const p = S.power[key], o = S.outside[key], w = S.water[key], c = S.cop[key];\n    if (!p || !o || p.hours.length < MIN_DAY_COVERAGE * 24 || o.hours.length < MIN_DAY_COVERAGE * 24) return undefined;\n    const powerAvg = meanOf(p.hours.map(h => h.mean));\n    const copHours = c ? c.hours.filter(h => h.min > 0) : [];\n    const copValues = (copHours.length ? copHours : (c ? c.hours.filter(h => h.mean > 0) : [])).map(h => h.mean);\n    return {\n        date: key,\n        source: \"statistics\",\n        used: powerAvg * 24 / 1000 >= MIN_DAY_ENERGY_KWH && p.hours.some(h => h.max > MIN_RUN_POWER_W),\n        outside_temp_avg: round(meanOf(o.hours.map(h => h.mean)), 1),\n        water_target_temp_avg: w ? round(meanOf(w.hours.map(h => h.mean)), 1) : null,\n        power_avg: round(powerAvg, 0),\n        energy: round(powerAvg * 24 / 1000, 2),\n        running_hours: p.hours.filter(h => h.mean > MIN_RUN_POWER_W).length, // approximation\n        cop_avg: round(meanOf(copValues), 2),\n    };\n}\n\n// The exact state history wins; statistics fill in the days the recorder has purged\nconst keys = new Set([...Object.keys(H.power), ...Object.keys(S.power)]);\nkeys.delete(today); // incomplete day\nconst rows = [];\nlet skipped = 0;\n[...keys].sort().forEach(key => {\n    const row = rowFromHistory(key) ?? rowFromStatistics(key);\n    if (row && row.used) {\n        delete row.used;\n        rows.push(row);\n    } else {\n        skipped++; // not used or not enough data\n    }\n});\n\nif (rows.length === 0) {\n    log(this, \"No days found on which the heat pump has been used\", \"warn\");\n    node.status({ fill: \"red\", shape: \"ring\", text: \"No usable days\" });\n    return null;\n}\n\n// 4.  Relation to the outside temperature\n// Least squares fit y = slope * outside + intercept\nfunction fit(key) {\n    const pts = rows.filter(r => r[key] !== null && r.outside_temp_avg !== null);\n    const n = pts.length;\n    if (n < 2) return null;\n    const mx = pts.reduce((s, r) => s + r.outside_temp_avg, 0) / n;\n    const my = pts.reduce((s, r) => s + r[key], 0) / n;\n    const sxx = pts.reduce((s, r) => s + (r.outside_temp_avg - mx) ** 2, 0);\n    if (sxx === 0) return null;\n    const sxy = pts.reduce((s, r) => s + (r.outside_temp_avg - mx) * (r[key] - my), 0);\n    const slope = sxy / sxx;\n    return { slope: round(slope, 3), intercept: round(my - slope * mx, 2), days: n };\n}\n\nconst average = (list, key, digits = 2) => round(meanOf(list.map(r => r[key]).filter(v => v !== null)), digits);\n\n// Averages per whole °C outside temperature\nconst bins = {};\nrows.forEach(r => (bins[Math.round(r.outside_temp_avg)] ??= []).push(r));\nconst curve = Object.keys(bins).map(Number).sort((a, b) => a - b).map(t => ({\n    outside_temp: t,\n    days: bins[t].length,\n    water_target_temp: average(bins[t], \"water_target_temp_avg\", 1),\n    power: average(bins[t], \"power_avg\", 0),\n    energy: average(bins[t], \"energy\", 2),\n    cop: average(bins[t], \"cop_avg\", 2),\n}));\n\n// 5.  Output\nconst summary = {\n    updated: new Date(now).toISOString(),\n    first_day: rows[0].date,\n    last_day: rows[rows.length - 1].date,\n    days_used: rows.length,\n    days_from_history: rows.filter(r => r.source === \"history\").length,\n    days_from_statistics: rows.filter(r => r.source === \"statistics\").length,\n    days_skipped: skipped,\n    averages: {\n        outside_temp_avg: average(rows, \"outside_temp_avg\", 1),\n        water_target_temp_avg: average(rows, \"water_target_temp_avg\", 1),\n        power_avg: average(rows, \"power_avg\", 0),\n        energy: average(rows, \"energy\", 2),\n        cop_avg: average(rows, \"cop_avg\", 2),\n    },\n    // per °C outside temperature: value = slope * outside_temp + intercept\n    fit: {\n        water_target_temp: fit(\"water_target_temp_avg\"),\n        power: fit(\"power_avg\"),\n        cop: fit(\"cop_avg\"),\n    },\n    curve: curve,\n};\n\n// Full day list stays in Node-RED, Home Assistant gets the (small) summary\nglobal.set(\"heat_pump_history\", { ...summary, days: rows });\nmsg.heat_pump_history = summary;\ndelete msg.history; // raw data is large, do not pass it on\ndelete msg.statistics;\n\nlog(this, `${rows.length} days used (${summary.first_day} .. ${summary.last_day}), ${skipped} skipped`);\nnode.status({ fill: \"green\", shape: \"dot\", text: `${rows.length} days | COP ${summary.averages.cop_avg ?? \"-\"}` });\n\nreturn msg;\n",
         "outputs": 1,
         "timeout": 0,
         "noerr": 0,
         "initialize": "",
         "finalize": "",
         "libs": [],
-        "x": 730,
+        "x": 590,
         "y": 120,
         "wires": [
             [
-                "de88fb5ced39bb43",
-                "66c8db603e02569c"
+                "3399b6f223767123",
+                "0a9b923c09d69e99"
             ]
         ],
-        "z": "b8aee701bcfbd622",
-        "g": "7e81ab2edfa8890d"
+        "id": "12470bc15a42b996",
+        "z": "637c08aefe059a43",
+        "g": "58f6ac0df679b818"
     },
     {
-        "id": "5d139d878e8c017a",
-        "type": "api-get-history",
-        "name": "COP",
+        "type": "ha-api",
+        "name": "Long-term statistics",
         "server": "176d29a.6f648d6",
         "version": 1,
-        "startDate": "",
-        "endDate": "",
-        "entityId": "sensor.heatpump_cop_not_below_0",
-        "entityIdType": "equals",
-        "useRelativeTime": true,
-        "relativeTime": "30d",
-        "flatten": true,
-        "output_type": "array",
-        "output_location_type": "msg",
-        "output_location": "history.cop",
-        "x": 410,
-        "y": 280,
-        "wires": [
-            [
-                "abbf3ba0322bc92e"
-            ]
+        "debugenabled": false,
+        "protocol": "websocket",
+        "method": "get",
+        "path": "",
+        "data": "{\n    \"type\": \"recorder/statistics_during_period\",\n    \"start_time\": \"2000-01-01T00:00:00Z\",\n    \"statistic_ids\": [\n        \"sensor.sparrow_p60_heat_pump_outside_temperature\",\n        \"sensor.sparrow_p60_heat_pump_water_target_temperature\",\n        \"sensor.sparrow_p60_heat_pump\",\n        \"sensor.heatpump_cop_not_below_0\"\n    ],\n    \"period\": \"hour\",\n    \"types\": [\n        \"mean\",\n        \"min\",\n        \"max\"\n    ]\n}",
+        "dataType": "json",
+        "responseType": "json",
+        "outputProperties": [
+            {
+                "property": "statistics",
+                "propertyType": "msg",
+                "value": "",
+                "valueType": "results"
+            }
         ],
-        "z": "b8aee701bcfbd622",
-        "g": "88d0abcf30914e90"
-    },
-    {
-        "id": "5671ea3dfb27916c",
-        "type": "api-get-history",
-        "name": "Power",
-        "server": "176d29a.6f648d6",
-        "version": 1,
-        "startDate": "",
-        "endDate": "",
-        "entityId": "sensor.sparrow_p60_heat_pump",
-        "entityIdType": "equals",
-        "useRelativeTime": true,
-        "relativeTime": "30d",
-        "flatten": true,
-        "output_type": "array",
-        "output_location_type": "msg",
-        "output_location": "history.power",
-        "x": 410,
-        "y": 240,
-        "wires": [
-            [
-                "5d139d878e8c017a"
-            ]
-        ],
-        "z": "b8aee701bcfbd622",
-        "g": "88d0abcf30914e90"
-    },
-    {
-        "id": "b2cb662c7e7cd4ea",
-        "type": "api-get-history",
-        "name": "Water target temperature",
-        "server": "176d29a.6f648d6",
-        "version": 1,
-        "startDate": "",
-        "endDate": "",
-        "entityId": "sensor.sparrow_p60_heat_pump_water_target_temperature",
-        "entityIdType": "equals",
-        "useRelativeTime": true,
-        "relativeTime": "30d",
-        "flatten": true,
-        "output_type": "array",
-        "output_location_type": "msg",
-        "output_location": "history.water",
-        "x": 420,
-        "y": 200,
-        "wires": [
-            [
-                "5671ea3dfb27916c"
-            ]
-        ],
-        "z": "b8aee701bcfbd622",
-        "g": "88d0abcf30914e90"
-    },
-    {
-        "id": "47fa54b2d2f7e29e",
-        "type": "api-get-history",
-        "name": "Outside temperature",
-        "server": "176d29a.6f648d6",
-        "version": 1,
-        "startDate": "",
-        "endDate": "",
-        "entityId": "sensor.sparrow_p60_heat_pump_outside_temperature",
-        "entityIdType": "equals",
-        "useRelativeTime": true,
-        "relativeTime": "30d",
-        "flatten": true,
-        "output_type": "array",
-        "output_location_type": "msg",
-        "output_location": "history.outside",
-        "x": 420,
+        "x": 330,
         "y": 160,
         "wires": [
             [
-                "b2cb662c7e7cd4ea"
+                "12470bc15a42b996"
             ]
         ],
-        "z": "b8aee701bcfbd622",
-        "g": "88d0abcf30914e90"
+        "id": "97aee2703b8a6177",
+        "z": "637c08aefe059a43",
+        "g": "dc8d460d15034b92"
     },
     {
-        "id": "edfbdf222cbbca01",
-        "type": "comment",
-        "name": "Last 30 days",
-        "info": "Change `Relative time` in all four nodes to change the period",
-        "x": 390,
+        "type": "ha-api",
+        "name": "State history",
+        "server": "176d29a.6f648d6",
+        "version": 1,
+        "debugenabled": false,
+        "protocol": "websocket",
+        "method": "get",
+        "path": "",
+        "data": "{\n    \"type\": \"history/history_during_period\",\n    \"start_time\": \"2000-01-01T00:00:00Z\",\n    \"entity_ids\": [\n        \"sensor.sparrow_p60_heat_pump_outside_temperature\",\n        \"sensor.sparrow_p60_heat_pump_water_target_temperature\",\n        \"sensor.sparrow_p60_heat_pump\",\n        \"sensor.heatpump_cop_not_below_0\"\n    ],\n    \"minimal_response\": true,\n    \"no_attributes\": true,\n    \"significant_changes_only\": false\n}",
+        "dataType": "json",
+        "responseType": "json",
+        "outputProperties": [
+            {
+                "property": "history",
+                "propertyType": "msg",
+                "value": "",
+                "valueType": "results"
+            }
+        ],
+        "x": 310,
         "y": 120,
-        "wires": [],
-        "z": "b8aee701bcfbd622",
-        "g": "88d0abcf30914e90"
-    },
-    {
-        "id": "4d79019e10380b77",
-        "type": "function",
-        "name": "Init",
-        "func": "// Init\nmsg.history = {};\nreturn msg;",
-        "outputs": 1,
-        "timeout": 0,
-        "noerr": 0,
-        "initialize": "",
-        "finalize": "",
-        "libs": [],
-        "x": 210,
-        "y": 160,
         "wires": [
             [
-                "47fa54b2d2f7e29e"
+                "97aee2703b8a6177"
             ]
         ],
-        "z": "b8aee701bcfbd622",
-        "g": "a0d44fdfcfff4419"
+        "id": "c8c1aecf46a778eb",
+        "z": "637c08aefe059a43",
+        "g": "dc8d460d15034b92"
     },
     {
-        "id": "482f3ad97356bc5d",
         "type": "inject",
         "name": "Daily",
         "props": [
@@ -270,17 +173,17 @@
         "payload": "",
         "payloadType": "date",
         "x": 100,
-        "y": 160,
+        "y": 120,
         "wires": [
             [
-                "4d79019e10380b77"
+                "c8c1aecf46a778eb"
             ]
         ],
-        "z": "b8aee701bcfbd622",
-        "g": "a0d44fdfcfff4419"
+        "id": "c9c2b3f91b34f94b",
+        "z": "637c08aefe059a43",
+        "g": "92487d0d197600bf"
     },
     {
-        "id": "b9c3c9058ff80cbe",
         "type": "inject",
         "name": "Test",
         "props": [
@@ -300,17 +203,34 @@
         "payload": "",
         "payloadType": "date",
         "x": 100,
-        "y": 200,
+        "y": 160,
         "wires": [
             [
-                "4d79019e10380b77"
+                "c8c1aecf46a778eb"
             ]
         ],
-        "z": "b8aee701bcfbd622",
-        "g": "a0d44fdfcfff4419"
+        "id": "e33f0fe238eb8089",
+        "z": "637c08aefe059a43",
+        "g": "92487d0d197600bf"
     },
     {
-        "id": "de88fb5ced39bb43",
+        "type": "ha-fire-event",
+        "name": "Heat pump history",
+        "server": "176d29a.6f648d6",
+        "version": 0,
+        "event": "heat_pump_history",
+        "data": "msg.heat_pump_history",
+        "dataType": "jsonata",
+        "x": 740,
+        "y": 120,
+        "wires": [
+            []
+        ],
+        "id": "3399b6f223767123",
+        "z": "637c08aefe059a43",
+        "g": "58f6ac0df679b818"
+    },
+    {
         "type": "debug",
         "name": "Heat pump history",
         "active": true,
@@ -321,31 +241,32 @@
         "targetType": "msg",
         "statusVal": "",
         "statusType": "auto",
-        "x": 760,
+        "x": 740,
         "y": 200,
         "wires": [],
-        "z": "b8aee701bcfbd622",
-        "g": "7e81ab2edfa8890d"
+        "id": "0a9b923c09d69e99",
+        "z": "637c08aefe059a43",
+        "g": "58f6ac0df679b818"
     },
     {
-        "id": "66c8db603e02569c",
-        "type": "ha-fire-event",
-        "name": "Heat pump history",
-        "server": "176d29a.6f648d6",
-        "version": 0,
-        "event": "heat_pump_history",
-        "data": "msg.heat_pump_history",
-        "dataType": "jsonata",
-        "x": 760,
-        "y": 160,
-        "wires": [
-            []
+        "type": "group",
+        "name": "Unhandled exceptions",
+        "style": {
+            "label": true
+        },
+        "nodes": [
+            "ccd18d3a2ae5fec0",
+            "53bf4467b097f752",
+            "d6062b0d705baf51"
         ],
-        "z": "b8aee701bcfbd622",
-        "g": "7e81ab2edfa8890d"
+        "x": 14,
+        "y": 279,
+        "w": 252,
+        "h": 82,
+        "id": "aad8039beb2bfec9",
+        "z": "637c08aefe059a43"
     },
     {
-        "id": "40c11f96d54a7599",
         "type": "debug",
         "name": "Errors",
         "active": false,
@@ -357,13 +278,13 @@
         "statusVal": "",
         "statusType": "auto",
         "x": 230,
-        "y": 400,
+        "y": 320,
         "wires": [],
-        "z": "b8aee701bcfbd622",
-        "g": "1294b1ce773bb499"
+        "id": "ccd18d3a2ae5fec0",
+        "z": "637c08aefe059a43",
+        "g": "aad8039beb2bfec9"
     },
     {
-        "id": "3923f017dc401974",
         "type": "function",
         "name": "Unhandled Exception",
         "func": "// Log unhandled exception\nconst handle = global.get('unhandledException');\nif(handle) handle(this);\n\nreturn msg;",
@@ -374,30 +295,31 @@
         "finalize": "",
         "libs": [],
         "x": 150,
-        "y": 400,
+        "y": 320,
         "wires": [
             [
-                "40c11f96d54a7599"
+                "ccd18d3a2ae5fec0"
             ]
         ],
-        "z": "b8aee701bcfbd622",
-        "g": "1294b1ce773bb499"
+        "id": "53bf4467b097f752",
+        "z": "637c08aefe059a43",
+        "g": "aad8039beb2bfec9"
     },
     {
-        "id": "7fa65567a2b4fad9",
         "type": "catch",
         "name": "",
         "scope": null,
         "uncaught": false,
         "x": 65,
-        "y": 400,
+        "y": 320,
         "wires": [
             [
-                "3923f017dc401974"
+                "53bf4467b097f752"
             ]
         ],
-        "z": "b8aee701bcfbd622",
-        "g": "1294b1ce773bb499"
+        "id": "d6062b0d705baf51",
+        "z": "637c08aefe059a43",
+        "g": "aad8039beb2bfec9"
     },
     {
         "id": "176d29a.6f648d6",
@@ -414,7 +336,7 @@
         "enableGlobalContextStore": false
     },
     {
-        "id": "587e9dd7e9d15445",
+        "id": "2a4b46ce1b2fa3f8",
         "type": "global-config",
         "env": [],
         "modules": {

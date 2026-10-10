@@ -1,0 +1,106 @@
+# Heat pump feedforward dashboard
+# Add a new dashboard in Home Assistant, open the raw configuration editor and paste this file.
+views:
+  - type: sections
+    path: heat-pump
+    max_columns: 3
+    title: Heat pump
+    icon: mdi:heat-pump
+    sections:
+      - type: grid
+        cards:
+          - type: heading
+            heading: Feedforward
+            heading_style: title
+            icon: mdi:thermometer-auto
+          - type: tile
+            entity: sensor.heat_pump_feedforward_water_temperature
+            name: Feedforward water temperature
+          - type: tile
+            entity: sensor.sparrow_p60_heat_pump_outside_temperature
+            name: Outside temperature
+          - type: entities
+            entities:
+              - entity: input_select.heat_pump_feedforward_source
+              - entity: input_number.heat_pump_feedforward_min_water_temperature
+              - entity: input_number.heat_pump_feedforward_max_water_temperature
+          - type: markdown
+            content: |-
+              {% set ff = 'sensor.heat_pump_feedforward_water_temperature' %}
+              **Active curve:** {{ state_attr(ff, 'source') }}
+
+              water = {{ state_attr(ff, 'slope') }} × outside + {{ state_attr(ff, 'intercept') }}
+
+              Expected at {{ state_attr(ff, 'outside_temp') }} °C outside:
+              {{ state_attr(ff, 'expected_power') }} W, COP {{ state_attr(ff, 'expected_cop') }}
+          - type: heading
+            heading: Manual heating curve
+            heading_style: subtitle
+            icon: mdi:pen
+          - type: entities
+            entities:
+              - entity: input_number.heat_pump_feedforward_manual_slope
+              - entity: input_number.heat_pump_feedforward_manual_intercept
+              - entity: script.heat_pump_feedforward_copy_history_to_manual
+                name: Copy history curve to manual
+          - type: history-graph
+            title: Water temperature
+            hours_to_show: 48
+            entities:
+              - entity: sensor.heat_pump_feedforward_water_temperature
+                name: Feedforward
+              - entity: sensor.sparrow_p60_heat_pump_water_target_temperature
+                name: Target
+              - entity: sensor.sparrow_p60_heat_pump_outside_temperature
+                name: Outside
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: History
+            heading_style: title
+            icon: mdi:history
+          - type: entities
+            entities:
+              - entity: sensor.heat_pump_history_water_slope
+                name: History slope
+              - entity: sensor.heat_pump_history_water_intercept
+                name: History intercept
+              - entity: sensor.heat_pump_history
+                name: Days used
+          - type: markdown
+            content: |-
+              {% set h = 'sensor.heat_pump_history' %}
+              {% set fit = state_attr(h, 'fit') or {} %}
+              {% set avg = state_attr(h, 'averages') or {} %}
+
+              **{{ state_attr(h, 'first_day') }} – {{ state_attr(h, 'last_day') }}**
+              ({{ state_attr(h, 'days_from_history') }} days history,
+              {{ state_attr(h, 'days_from_statistics') }} days statistics,
+              {{ state_attr(h, 'days_skipped') }} skipped)
+
+              | Fit (× outside + …) | Slope | Intercept | Days |
+              |---|---|---|---|
+              {% for key, name in [('water_target_temp', 'Water °C'), ('power', 'Power W'), ('cop', 'COP')] -%}
+              {% set f = fit[key] if fit[key] is mapping else {} -%}
+              | {{ name }} | {{ f.slope | default('-') }} | {{ f.intercept | default('-') }} | {{ f.days | default('-') }} |
+              {% endfor %}
+
+              Averages: {{ avg.outside_temp_avg }} °C outside, {{ avg.water_target_temp_avg }} °C water,
+              {{ avg.power_avg }} W ({{ avg.energy }} kWh/day), COP {{ avg.cop_avg }}
+
+              Updated: {{ state_attr(h, 'updated') }}
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Per outside temperature
+            heading_style: title
+            icon: mdi:table
+          - type: markdown
+            content: |-
+              | Outside °C | Days | Water °C | Power W | kWh/day | COP |
+              |---:|---:|---:|---:|---:|---:|
+              {% for r in state_attr('sensor.heat_pump_history', 'curve') or [] -%}
+              | {{ r.outside_temp }} | {{ r.days }} | {{ r.water_target_temp if r.water_target_temp is not none else '-' }} | {{ r.power }} | {{ r.energy }} | {{ r.cop if r.cop is not none else '-' }} |
+              {% endfor %}

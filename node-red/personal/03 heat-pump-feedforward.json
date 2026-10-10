@@ -1,0 +1,651 @@
+[
+    {
+        "id": "30c1cadb3f5445db",
+        "type": "tab",
+        "label": "Heat Pump Feedforward",
+        "disabled": false,
+        "info": "Feedforward water temperature from the outside temperature",
+        "env": []
+    },
+    {
+        "type": "comment",
+        "name": "Heat Pump Feedforward (readme)",
+        "info": "# Heat pump feedforward\n\nCalculates the feedforward water temperature from the current outside temperature:\n`water_temp = slope * outside_temp + intercept`, limited to the min / max water temperature.\n\n## Heating curve\nSelect with `input_select.heat_pump_feedforward_source`:\n- **Manual**: `input_number.heat_pump_feedforward_manual_slope` / `_manual_intercept`\n- **History**: the curve calculated by the `Heat Pump History` flow. Falls back to Manual\n  as long as the history has not been calculated.\n\n## Output\n- `global.heat_pump_feedforward` for use in other flows\n- Home Assistant event `heat_pump_feedforward` -> `sensor.heat_pump_feedforward_water_temperature`",
+        "x": 160,
+        "y": 40,
+        "wires": [],
+        "id": "1e7d9319fd2199d8",
+        "z": "30c1cadb3f5445db"
+    },
+    {
+        "type": "group",
+        "name": "Trigger",
+        "style": {
+            "label": true
+        },
+        "nodes": [
+            "3bed5c43fbcf1646",
+            "736a2fb822439a46",
+            "30bacea97f98e963"
+        ],
+        "x": 14,
+        "y": 79,
+        "w": 312,
+        "h": 122,
+        "id": "7b5ee698cac28b91",
+        "z": "30c1cadb3f5445db"
+    },
+    {
+        "type": "group",
+        "name": "Input",
+        "style": {
+            "label": true
+        },
+        "nodes": [
+            "d3aa92a7f2f49ced",
+            "6b0111110de2dc26",
+            "19bffb623a389680",
+            "b022adda0d5f0cee",
+            "accc03992ae42663",
+            "0c86fb739462581f"
+        ],
+        "x": 354,
+        "y": 79,
+        "w": 212,
+        "h": 282,
+        "id": "9326d2530a306320",
+        "z": "30c1cadb3f5445db"
+    },
+    {
+        "type": "group",
+        "name": "Calculate",
+        "style": {
+            "label": true
+        },
+        "nodes": [
+            "1af7426268166ba5",
+            "200bc9ff4177f8a6",
+            "c8cdccbeff884117"
+        ],
+        "x": 594,
+        "y": 79,
+        "w": 352,
+        "h": 162,
+        "id": "d51727478b63d37b",
+        "z": "30c1cadb3f5445db"
+    },
+    {
+        "type": "function",
+        "name": "Feedforward",
+        "func": "// logger, usage: log(this, \"\");\nconst log = global.get('logger');\n\n// 1.  Input\nconst ff = msg.feedforward || {};\nconst outside = parseFloat(ff.outside_temp);\nconst minWater = parseFloat(ff.min_water_temp);\nconst maxWater = parseFloat(ff.max_water_temp);\nconst history = global.get(\"heat_pump_history\");\n\nif (!isFinite(outside)) {\n    log(this, \"Outside temperature unavailable\", \"warn\");\n    node.status({ fill: \"red\", shape: \"ring\", text: \"No outside temperature\" });\n    return null;\n}\n\nconst round = (v, digits) => (v === null || v === undefined || !isFinite(v)) ? null : Number(v.toFixed(digits));\nconst atOutside = (line) => line ? line.slope * outside + line.intercept : null;\n\n// 2.  Select the heating curve: water = slope * outside + intercept\nconst manual = { slope: parseFloat(ff.manual_slope), intercept: parseFloat(ff.manual_intercept) };\nconst historyFit = history?.fit?.water_target_temp;\n\nlet source = ff.source;\nlet curve = manual;\nif (source === \"History\") {\n    if (historyFit) {\n        curve = historyFit;\n    } else {\n        // History not calculated yet (e.g. just after a restart), fall back to the manual curve\n        log(this, \"No history curve available, using manual values\", \"warn\");\n        source = \"Manual (history unavailable)\";\n    }\n}\n\nif (!isFinite(curve.slope) || !isFinite(curve.intercept)) {\n    log(this, \"Heating curve incomplete\", \"warn\");\n    node.status({ fill: \"red\", shape: \"ring\", text: \"No heating curve\" });\n    return null;\n}\n\n// 3.  Feedforward water temperature, limited to min / max\nlet water = atOutside(curve);\nif (isFinite(minWater)) water = Math.max(water, minWater);\nif (isFinite(maxWater)) water = Math.min(water, maxWater);\n\n// 4.  Output\nmsg.feedforward = {\n    ...ff,\n    outside_temp: outside,\n    source: source,\n    slope: curve.slope,\n    intercept: curve.intercept,\n    water_temp: round(water, 1),\n    // expected values from the history at this outside temperature, for information\n    expected_power: round(atOutside(history?.fit?.power), 0),\n    expected_cop: round(atOutside(history?.fit?.cop), 2),\n};\n\nglobal.set(\"heat_pump_feedforward\", msg.feedforward);\n\nnode.status({ fill: \"green\", shape: \"dot\", text: `${msg.feedforward.water_temp} °C @ ${outside} °C (${source})` });\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 690,
+        "y": 120,
+        "wires": [
+            [
+                "200bc9ff4177f8a6",
+                "c8cdccbeff884117"
+            ]
+        ],
+        "id": "1af7426268166ba5",
+        "z": "30c1cadb3f5445db",
+        "g": "d51727478b63d37b"
+    },
+    {
+        "type": "api-current-state",
+        "name": "Max water temp",
+        "server": "176d29a.6f648d6",
+        "version": 3,
+        "outputs": 1,
+        "halt_if": "",
+        "halt_if_type": "str",
+        "halt_if_compare": "is",
+        "entity_id": "input_number.heat_pump_feedforward_max_water_temperature",
+        "state_type": "str",
+        "blockInputOverrides": true,
+        "outputProperties": [
+            {
+                "property": "payload",
+                "propertyType": "msg",
+                "value": "string",
+                "valueType": "entityState"
+            },
+            {
+                "property": "data",
+                "propertyType": "msg",
+                "value": "",
+                "valueType": "entity"
+            },
+            {
+                "property": "feedforward.max_water_temp",
+                "propertyType": "msg",
+                "value": "number",
+                "valueType": "entityState"
+            }
+        ],
+        "for": "0",
+        "forType": "num",
+        "forUnits": "minutes",
+        "override_topic": false,
+        "state_location": "payload",
+        "override_payload": "msg",
+        "entity_location": "data",
+        "override_data": "msg",
+        "x": 460,
+        "y": 320,
+        "wires": [
+            [
+                "1af7426268166ba5"
+            ]
+        ],
+        "id": "d3aa92a7f2f49ced",
+        "z": "30c1cadb3f5445db",
+        "g": "9326d2530a306320"
+    },
+    {
+        "type": "api-current-state",
+        "name": "Min water temp",
+        "server": "176d29a.6f648d6",
+        "version": 3,
+        "outputs": 1,
+        "halt_if": "",
+        "halt_if_type": "str",
+        "halt_if_compare": "is",
+        "entity_id": "input_number.heat_pump_feedforward_min_water_temperature",
+        "state_type": "str",
+        "blockInputOverrides": true,
+        "outputProperties": [
+            {
+                "property": "payload",
+                "propertyType": "msg",
+                "value": "string",
+                "valueType": "entityState"
+            },
+            {
+                "property": "data",
+                "propertyType": "msg",
+                "value": "",
+                "valueType": "entity"
+            },
+            {
+                "property": "feedforward.min_water_temp",
+                "propertyType": "msg",
+                "value": "number",
+                "valueType": "entityState"
+            }
+        ],
+        "for": "0",
+        "forType": "num",
+        "forUnits": "minutes",
+        "override_topic": false,
+        "state_location": "payload",
+        "override_payload": "msg",
+        "entity_location": "data",
+        "override_data": "msg",
+        "x": 460,
+        "y": 280,
+        "wires": [
+            [
+                "d3aa92a7f2f49ced"
+            ]
+        ],
+        "id": "6b0111110de2dc26",
+        "z": "30c1cadb3f5445db",
+        "g": "9326d2530a306320"
+    },
+    {
+        "type": "api-current-state",
+        "name": "Manual intercept",
+        "server": "176d29a.6f648d6",
+        "version": 3,
+        "outputs": 1,
+        "halt_if": "",
+        "halt_if_type": "str",
+        "halt_if_compare": "is",
+        "entity_id": "input_number.heat_pump_feedforward_manual_intercept",
+        "state_type": "str",
+        "blockInputOverrides": true,
+        "outputProperties": [
+            {
+                "property": "payload",
+                "propertyType": "msg",
+                "value": "string",
+                "valueType": "entityState"
+            },
+            {
+                "property": "data",
+                "propertyType": "msg",
+                "value": "",
+                "valueType": "entity"
+            },
+            {
+                "property": "feedforward.manual_intercept",
+                "propertyType": "msg",
+                "value": "number",
+                "valueType": "entityState"
+            }
+        ],
+        "for": "0",
+        "forType": "num",
+        "forUnits": "minutes",
+        "override_topic": false,
+        "state_location": "payload",
+        "override_payload": "msg",
+        "entity_location": "data",
+        "override_data": "msg",
+        "x": 460,
+        "y": 240,
+        "wires": [
+            [
+                "6b0111110de2dc26"
+            ]
+        ],
+        "id": "19bffb623a389680",
+        "z": "30c1cadb3f5445db",
+        "g": "9326d2530a306320"
+    },
+    {
+        "type": "api-current-state",
+        "name": "Manual slope",
+        "server": "176d29a.6f648d6",
+        "version": 3,
+        "outputs": 1,
+        "halt_if": "",
+        "halt_if_type": "str",
+        "halt_if_compare": "is",
+        "entity_id": "input_number.heat_pump_feedforward_manual_slope",
+        "state_type": "str",
+        "blockInputOverrides": true,
+        "outputProperties": [
+            {
+                "property": "payload",
+                "propertyType": "msg",
+                "value": "string",
+                "valueType": "entityState"
+            },
+            {
+                "property": "data",
+                "propertyType": "msg",
+                "value": "",
+                "valueType": "entity"
+            },
+            {
+                "property": "feedforward.manual_slope",
+                "propertyType": "msg",
+                "value": "number",
+                "valueType": "entityState"
+            }
+        ],
+        "for": "0",
+        "forType": "num",
+        "forUnits": "minutes",
+        "override_topic": false,
+        "state_location": "payload",
+        "override_payload": "msg",
+        "entity_location": "data",
+        "override_data": "msg",
+        "x": 460,
+        "y": 200,
+        "wires": [
+            [
+                "19bffb623a389680"
+            ]
+        ],
+        "id": "b022adda0d5f0cee",
+        "z": "30c1cadb3f5445db",
+        "g": "9326d2530a306320"
+    },
+    {
+        "type": "api-current-state",
+        "name": "Source",
+        "server": "176d29a.6f648d6",
+        "version": 3,
+        "outputs": 1,
+        "halt_if": "",
+        "halt_if_type": "str",
+        "halt_if_compare": "is",
+        "entity_id": "input_select.heat_pump_feedforward_source",
+        "state_type": "str",
+        "blockInputOverrides": true,
+        "outputProperties": [
+            {
+                "property": "payload",
+                "propertyType": "msg",
+                "value": "string",
+                "valueType": "entityState"
+            },
+            {
+                "property": "data",
+                "propertyType": "msg",
+                "value": "",
+                "valueType": "entity"
+            },
+            {
+                "property": "feedforward.source",
+                "propertyType": "msg",
+                "value": "string",
+                "valueType": "entityState"
+            }
+        ],
+        "for": "0",
+        "forType": "num",
+        "forUnits": "minutes",
+        "override_topic": false,
+        "state_location": "payload",
+        "override_payload": "msg",
+        "entity_location": "data",
+        "override_data": "msg",
+        "x": 460,
+        "y": 160,
+        "wires": [
+            [
+                "b022adda0d5f0cee"
+            ]
+        ],
+        "id": "accc03992ae42663",
+        "z": "30c1cadb3f5445db",
+        "g": "9326d2530a306320"
+    },
+    {
+        "type": "api-current-state",
+        "name": "Outside temperature",
+        "server": "176d29a.6f648d6",
+        "version": 3,
+        "outputs": 1,
+        "halt_if": "",
+        "halt_if_type": "str",
+        "halt_if_compare": "is",
+        "entity_id": "sensor.sparrow_p60_heat_pump_outside_temperature",
+        "state_type": "str",
+        "blockInputOverrides": true,
+        "outputProperties": [
+            {
+                "property": "payload",
+                "propertyType": "msg",
+                "value": "string",
+                "valueType": "entityState"
+            },
+            {
+                "property": "data",
+                "propertyType": "msg",
+                "value": "",
+                "valueType": "entity"
+            },
+            {
+                "property": "feedforward.outside_temp",
+                "propertyType": "msg",
+                "value": "number",
+                "valueType": "entityState"
+            }
+        ],
+        "for": "0",
+        "forType": "num",
+        "forUnits": "minutes",
+        "override_topic": false,
+        "state_location": "payload",
+        "override_payload": "msg",
+        "entity_location": "data",
+        "override_data": "msg",
+        "x": 460,
+        "y": 120,
+        "wires": [
+            [
+                "accc03992ae42663"
+            ]
+        ],
+        "id": "0c86fb739462581f",
+        "z": "30c1cadb3f5445db",
+        "g": "9326d2530a306320"
+    },
+    {
+        "type": "function",
+        "name": "Init",
+        "func": "// Init\nmsg.feedforward = {};\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 270,
+        "y": 140,
+        "wires": [
+            [
+                "0c86fb739462581f"
+            ]
+        ],
+        "id": "3bed5c43fbcf1646",
+        "z": "30c1cadb3f5445db",
+        "g": "7b5ee698cac28b91"
+    },
+    {
+        "type": "inject",
+        "name": "Every 5 min",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "300",
+        "crontab": "",
+        "once": true,
+        "onceDelay": "10",
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 110,
+        "y": 120,
+        "wires": [
+            [
+                "3bed5c43fbcf1646"
+            ]
+        ],
+        "id": "736a2fb822439a46",
+        "z": "30c1cadb3f5445db",
+        "g": "7b5ee698cac28b91"
+    },
+    {
+        "type": "server-state-changed",
+        "name": "User input",
+        "server": "176d29a.6f648d6",
+        "version": 6,
+        "outputs": 1,
+        "exposeAsEntityConfig": "",
+        "entities": {
+            "entity": [
+                "sensor.sparrow_p60_heat_pump_outside_temperature",
+                "input_select.heat_pump_feedforward_source",
+                "input_number.heat_pump_feedforward_manual_slope",
+                "input_number.heat_pump_feedforward_manual_intercept",
+                "input_number.heat_pump_feedforward_min_water_temperature",
+                "input_number.heat_pump_feedforward_max_water_temperature",
+                "sensor.heat_pump_history"
+            ],
+            "substring": [],
+            "regex": []
+        },
+        "outputInitially": false,
+        "stateType": "str",
+        "ifState": "",
+        "ifStateType": "str",
+        "ifStateOperator": "is",
+        "outputOnlyOnStateChange": true,
+        "for": "0",
+        "forType": "num",
+        "forUnits": "minutes",
+        "ignorePrevStateNull": false,
+        "ignorePrevStateUnknown": false,
+        "ignorePrevStateUnavailable": false,
+        "ignoreCurrentStateUnknown": false,
+        "ignoreCurrentStateUnavailable": false,
+        "outputProperties": [
+            {
+                "property": "payload",
+                "propertyType": "msg",
+                "value": "",
+                "valueType": "entityState"
+            },
+            {
+                "property": "data",
+                "propertyType": "msg",
+                "value": "",
+                "valueType": "eventData"
+            },
+            {
+                "property": "topic",
+                "propertyType": "msg",
+                "value": "",
+                "valueType": "triggerId"
+            }
+        ],
+        "x": 110,
+        "y": 160,
+        "wires": [
+            [
+                "3bed5c43fbcf1646"
+            ]
+        ],
+        "id": "30bacea97f98e963",
+        "z": "30c1cadb3f5445db",
+        "g": "7b5ee698cac28b91"
+    },
+    {
+        "type": "ha-fire-event",
+        "name": "Heat pump feedforward",
+        "server": "176d29a.6f648d6",
+        "version": 0,
+        "event": "heat_pump_feedforward",
+        "data": "msg.feedforward",
+        "dataType": "jsonata",
+        "x": 860,
+        "y": 120,
+        "wires": [
+            []
+        ],
+        "id": "200bc9ff4177f8a6",
+        "z": "30c1cadb3f5445db",
+        "g": "d51727478b63d37b"
+    },
+    {
+        "type": "debug",
+        "name": "Feedforward",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "feedforward",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 840,
+        "y": 200,
+        "wires": [],
+        "id": "c8cdccbeff884117",
+        "z": "30c1cadb3f5445db",
+        "g": "d51727478b63d37b"
+    },
+    {
+        "type": "group",
+        "name": "Unhandled exceptions",
+        "style": {
+            "label": true
+        },
+        "nodes": [
+            "4d9c58bfbe56084a",
+            "07f7c8b9e829f792",
+            "518ae76f032fbbbe"
+        ],
+        "x": 14,
+        "y": 399,
+        "w": 252,
+        "h": 82,
+        "id": "ea4768efe78f4b4f",
+        "z": "30c1cadb3f5445db"
+    },
+    {
+        "type": "debug",
+        "name": "Errors",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 230,
+        "y": 440,
+        "wires": [],
+        "id": "4d9c58bfbe56084a",
+        "z": "30c1cadb3f5445db",
+        "g": "ea4768efe78f4b4f"
+    },
+    {
+        "type": "function",
+        "name": "Unhandled Exception",
+        "func": "// Log unhandled exception\nconst handle = global.get('unhandledException');\nif(handle) handle(this);\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 150,
+        "y": 440,
+        "wires": [
+            [
+                "4d9c58bfbe56084a"
+            ]
+        ],
+        "id": "07f7c8b9e829f792",
+        "z": "30c1cadb3f5445db",
+        "g": "ea4768efe78f4b4f"
+    },
+    {
+        "type": "catch",
+        "name": "",
+        "scope": null,
+        "uncaught": false,
+        "x": 65,
+        "y": 440,
+        "wires": [
+            [
+                "07f7c8b9e829f792"
+            ]
+        ],
+        "id": "518ae76f032fbbbe",
+        "z": "30c1cadb3f5445db",
+        "g": "ea4768efe78f4b4f"
+    },
+    {
+        "id": "176d29a.6f648d6",
+        "type": "server",
+        "name": "Home Assistant",
+        "addon": true,
+        "rejectUnauthorizedCerts": true,
+        "ha_boolean": [],
+        "connectionDelay": false,
+        "cacheJson": false,
+        "heartbeat": false,
+        "heartbeatInterval": "",
+        "statusSeparator": "",
+        "enableGlobalContextStore": false
+    },
+    {
+        "id": "04d481a3af3fd8f1",
+        "type": "global-config",
+        "env": [],
+        "modules": {
+            "node-red-contrib-home-assistant-websocket": "0.80.3"
+        }
+    }
+]

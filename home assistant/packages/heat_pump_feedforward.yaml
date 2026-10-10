@@ -1,0 +1,151 @@
+# This file contains the entities of the personal heat pump feedforward.
+# It should be included in the main configuration.yaml file as a `package` via `!include_dir_named` https://www.home-assistant.io/docs/configuration/packages/.
+# Used by the Node-RED flows `node-red/personal/03 heat-pump-history.json` and `03 heat-pump-feedforward.json`.
+
+###########################################################################################################
+# LONG-TERM STATISTICS
+###########################################################################################################
+# Long-term statistics (kept forever) are only recorded for sensors with a state_class.
+# Harmless when the integration already sets it. Statistics are recorded from the moment this is active.
+homeassistant:
+  customize:
+    sensor.sparrow_p60_heat_pump_outside_temperature:
+      state_class: measurement
+    sensor.sparrow_p60_heat_pump_water_target_temperature:
+      state_class: measurement
+    sensor.sparrow_p60_heat_pump:
+      state_class: measurement
+    sensor.heatpump_cop_not_below_0:
+      state_class: measurement
+
+###########################################################################################################
+# INPUT_SELECT
+###########################################################################################################
+input_select:
+  heat_pump_feedforward_source:
+    name: Feedforward heating curve
+    options:
+      - Manual # Manual slope and intercept below
+      - History # Calculated from the heat pump history
+    icon: mdi:chart-bell-curve-cumulative
+
+###########################################################################################################
+# INPUT_NUMBER
+###########################################################################################################
+input_number:
+  # Manual heating curve: water temperature = slope * outside temperature + intercept
+  heat_pump_feedforward_manual_slope:
+    name: "Manual slope"
+    min: -3
+    max: 3
+    step: 0.001
+    mode: box
+    unit_of_measurement: "°C/°C"
+    icon: mdi:slope-downhill
+
+  heat_pump_feedforward_manual_intercept:
+    name: "Manual intercept (water temp at 0 °C outside)"
+    min: 10
+    max: 70
+    step: 0.01
+    mode: box
+    unit_of_measurement: "°C"
+    icon: mdi:thermometer-water
+
+  # Limits for the feedforward water temperature
+  heat_pump_feedforward_min_water_temperature:
+    name: "Min water temperature"
+    min: 15
+    max: 45
+    step: 0.5
+    unit_of_measurement: "°C"
+    icon: mdi:thermometer-low
+
+  heat_pump_feedforward_max_water_temperature:
+    name: "Max water temperature"
+    min: 25
+    max: 65
+    step: 0.5
+    unit_of_measurement: "°C"
+    icon: mdi:thermometer-high
+
+###########################################################################################################
+# SCRIPT
+###########################################################################################################
+script:
+  heat_pump_feedforward_copy_history_to_manual:
+    alias: Copy history curve to manual
+    icon: mdi:content-copy
+    sequence:
+      - condition: template
+        value_template: >
+          {{ states('sensor.heat_pump_history_water_slope') | is_number and
+             states('sensor.heat_pump_history_water_intercept') | is_number }}
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.heat_pump_feedforward_manual_slope
+        data:
+          value: "{{ states('sensor.heat_pump_history_water_slope') | float }}"
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.heat_pump_feedforward_manual_intercept
+        data:
+          value: "{{ states('sensor.heat_pump_history_water_intercept') | float }}"
+
+###########################################################################################################
+# TEMPLATE
+###########################################################################################################
+template:
+  # Heat pump history | sent by Node-RED once a day
+  - trigger:
+      - trigger: event
+        event_type: "heat_pump_history"
+    sensor:
+      - name: "Heat pump history"
+        unique_id: heat_pump_history_sensor
+        icon: mdi:history
+        # State is the number of days used for the calculation
+        state: "{{ trigger.event.data.days_used | default(0) }}"
+        attributes:
+          updated: "{{ trigger.event.data.updated | default('Unknown') }}"
+          first_day: "{{ trigger.event.data.first_day | default('Unknown') }}"
+          last_day: "{{ trigger.event.data.last_day | default('Unknown') }}"
+          days_from_history: "{{ trigger.event.data.days_from_history | default(0) }}"
+          days_from_statistics: "{{ trigger.event.data.days_from_statistics | default(0) }}"
+          days_skipped: "{{ trigger.event.data.days_skipped | default(0) }}"
+          averages: "{{ trigger.event.data.averages | default({}) }}"
+          fit: "{{ trigger.event.data.fit | default({}) }}"
+          curve: "{{ trigger.event.data.curve | default([]) }}"
+
+      - name: "Heat pump history water slope"
+        unique_id: heat_pump_history_water_slope
+        icon: mdi:slope-downhill
+        unit_of_measurement: "°C/°C"
+        availability: "{{ trigger.event.data.fit.water_target_temp is mapping }}"
+        state: "{{ trigger.event.data.fit.water_target_temp.slope }}"
+
+      - name: "Heat pump history water intercept"
+        unique_id: heat_pump_history_water_intercept
+        icon: mdi:thermometer-water
+        unit_of_measurement: "°C"
+        availability: "{{ trigger.event.data.fit.water_target_temp is mapping }}"
+        state: "{{ trigger.event.data.fit.water_target_temp.intercept }}"
+
+  # Heat pump feedforward | sent by Node-RED on every change
+  - trigger:
+      - trigger: event
+        event_type: "heat_pump_feedforward"
+    sensor:
+      - name: "Heat pump feedforward water temperature"
+        unique_id: heat_pump_feedforward_water_temperature
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+        state: "{{ trigger.event.data.water_temp }}"
+        attributes:
+          source: "{{ trigger.event.data.source }}"
+          slope: "{{ trigger.event.data.slope }}"
+          intercept: "{{ trigger.event.data.intercept }}"
+          outside_temp: "{{ trigger.event.data.outside_temp }}"
+          expected_power: "{{ trigger.event.data.expected_power }}"
+          expected_cop: "{{ trigger.event.data.expected_cop }}"
