@@ -19,6 +19,15 @@ homeassistant:
       state_class: measurement
 
 ###########################################################################################################
+# INPUT_BOOLEAN
+###########################################################################################################
+input_boolean:
+  # Forecast | shift the forecast by the difference between the measured and forecast temperature right now
+  heat_pump_feedforward_forecast_bias_correction:
+    name: "Correct forecast with measured temperature"
+    icon: mdi:thermometer-check
+
+###########################################################################################################
 # INPUT_DATETIME
 ###########################################################################################################
 input_datetime:
@@ -39,6 +48,13 @@ input_select:
       - Manual # Manual slope and intercept below
       - History # Calculated from the heat pump history
     icon: mdi:chart-bell-curve-cumulative
+
+  heat_pump_feedforward_outside_source:
+    name: Feedforward outside temperature
+    options:
+      - Current # Heat pump outside temperature (24h average for the simple schedule)
+      - Forecast # Met.no hourly forecast, weather.forecast_home
+    icon: mdi:weather-cloudy-clock
 
 ###########################################################################################################
 # INPUT_NUMBER
@@ -97,6 +113,41 @@ input_number:
     unit_of_measurement: "°C"
     icon: mdi:home-thermometer-outline
 
+  # Forecast | heating curve uses the average forecast over `window` hours, starting `lead time` hours ahead
+  heat_pump_feedforward_forecast_lead_time:
+    name: "Forecast lead time"
+    min: 0
+    max: 24
+    step: 0.5
+    unit_of_measurement: "h"
+    icon: mdi:clock-fast
+
+  heat_pump_feedforward_forecast_window:
+    name: "Forecast average window"
+    min: 0
+    max: 12
+    step: 0.5
+    unit_of_measurement: "h"
+    icon: mdi:arrow-expand-horizontal
+
+  # Forecast | 100 % = forecast only, 0 % = current temperature only
+  heat_pump_feedforward_forecast_weight:
+    name: "Forecast weight"
+    min: 0
+    max: 100
+    step: 5
+    unit_of_measurement: "%"
+    icon: mdi:scale-balance
+
+  # Forecast | simple schedule uses the average forecast over the next hours
+  heat_pump_feedforward_simple_forecast_hours:
+    name: "Simple schedule forecast hours"
+    min: 1
+    max: 48
+    step: 1
+    unit_of_measurement: "h"
+    icon: mdi:calendar-clock
+
 ###########################################################################################################
 # SENSOR
 ###########################################################################################################
@@ -134,6 +185,51 @@ script:
           entity_id: input_number.heat_pump_feedforward_manual_intercept
         data:
           value: "{{ states('sensor.heat_pump_history_water_intercept') | float }}"
+
+  heat_pump_feedforward_set_defaults:
+    alias: Set feedforward default values
+    icon: mdi:restore
+    sequence:
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.heat_pump_feedforward_forecast_lead_time
+        data:
+          value: 3
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.heat_pump_feedforward_forecast_window
+        data:
+          value: 2
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.heat_pump_feedforward_forecast_weight
+        data:
+          value: 100
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.heat_pump_feedforward_simple_forecast_hours
+        data:
+          value: 24
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.heat_pump_feedforward_simple_stop_inside_temperature
+        data:
+          value: 21
+      - action: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.heat_pump_feedforward_simple_start_time
+        data:
+          time: "00:00:00"
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.heat_pump_feedforward_min_water_temperature
+        data:
+          value: 20
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.heat_pump_feedforward_max_water_temperature
+        data:
+          value: 45
 
 ###########################################################################################################
 # TEMPLATE
@@ -204,7 +300,21 @@ template:
           expected_power: "{{ trigger.event.data.expected_power }}"
           expected_cop: "{{ trigger.event.data.expected_cop }}"
           outside_temp_avg: "{{ trigger.event.data.outside_temp_avg }}"
+          outside_source: "{{ trigger.event.data.outside_source }}"
+          forecast_temp: "{{ trigger.event.data.forecast_temp }}"
+          forecast_bias: "{{ trigger.event.data.forecast_bias }}"
+          outside_temp_used: "{{ trigger.event.data.outside_temp_used }}"
+          outside_temp_avg_used: "{{ trigger.event.data.outside_temp_avg_used }}"
           inside_temp: "{{ trigger.event.data.inside_temp }}"
+
+      - name: "Heat pump feedforward outside temperature"
+        unique_id: heat_pump_feedforward_outside_temperature
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+        state: "{{ trigger.event.data.outside_temp_used }}"
+        attributes:
+          source: "{{ trigger.event.data.outside_source }}"
 
     binary_sensor:
       # Off: the simple day schedule reached the inside temperature, heat pump off until the next start time

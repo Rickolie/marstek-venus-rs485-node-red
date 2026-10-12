@@ -10,7 +10,7 @@
     {
         "type": "comment",
         "name": "Heat Pump Feedforward (readme)",
-        "info": "# Heat pump feedforward\n\nCalculates the feedforward water temperature from the current outside temperature:\n`water_temp = slope * outside_temp + intercept`, limited to the min / max water temperature.\n\n## Heating curve\nSelect with `input_select.heat_pump_feedforward_source`:\n- **Manual**: `input_number.heat_pump_feedforward_manual_slope` / `_manual_intercept`\n- **History**: the curve calculated by the `Heat Pump History` flow. Falls back to Manual\n  as long as the history has not been calculated.\n\n## Simple day schedule (mild weather)\nBelow 24 °C water temperature the curve is replaced by a simple schedule, effective when\nthe 24h average outside temperature >= `input_number.heat_pump_feedforward_simple_outside_temperature`:\n- heat at 24 °C from `input_datetime.heat_pump_feedforward_simple_start_time` (default midnight)\n- stop for the rest of the day once `sensor.heat_pump_inside_temperature`\n  >= `input_number.heat_pump_feedforward_simple_stop_inside_temperature`\n- `heating` is false while stopped: switch the heat pump off\n\n## Output\n- `global.heat_pump_feedforward` for use in other flows\n- Home Assistant event `heat_pump_feedforward` -> `sensor.heat_pump_feedforward_water_temperature`\n  and `binary_sensor.heat_pump_feedforward_heating`",
+        "info": "# Heat pump feedforward\n\nCalculates the feedforward water temperature from the current outside temperature:\n`water_temp = slope * outside_temp + intercept`, limited to the min / max water temperature.\n\n## Heating curve\nSelect with `input_select.heat_pump_feedforward_source`:\n- **Manual**: `input_number.heat_pump_feedforward_manual_slope` / `_manual_intercept`\n- **History**: the curve calculated by the `Heat Pump History` flow. Falls back to Manual\n  as long as the history has not been calculated.\n\n## Simple day schedule (mild weather)\nBelow 24 °C water temperature the curve is replaced by a simple schedule, effective when\nthe 24h average outside temperature >= `input_number.heat_pump_feedforward_simple_outside_temperature`:\n- heat at 24 °C from `input_datetime.heat_pump_feedforward_simple_start_time` (default midnight)\n- stop for the rest of the day once `sensor.heat_pump_inside_temperature`\n  >= `input_number.heat_pump_feedforward_simple_stop_inside_temperature`\n- `heating` is false while stopped: switch the heat pump off\n\n## Outside temperature\nSelect with `input_select.heat_pump_feedforward_outside_source`:\n- **Current**: the heat pump outside temperature, and the 24h average for the simple schedule\n- **Forecast**: Met.no hourly forecast (`weather.forecast_home`), fetched every 30 minutes\n  - heating curve: average forecast over `window` hours, starting `lead time` hours ahead,\n    mixed with the current temperature by `weight` (100 % = forecast only)\n  - simple schedule: average forecast over the next `simple forecast hours`\n  - bias correction: shift the forecast by (measured - forecast) right now\n  - falls back to Current when no forecast of the last 3 hours is available\n\n## Output\n- `global.heat_pump_feedforward` for use in other flows\n- Home Assistant event `heat_pump_feedforward` -> `sensor.heat_pump_feedforward_water_temperature`\n  and `binary_sensor.heat_pump_feedforward_heating`",
         "x": 160,
         "y": 40,
         "wires": [],
@@ -42,6 +42,12 @@
             "label": true
         },
         "nodes": [
+            "339fd4c36f00fde7",
+            "bc42dbb6eefe60f2",
+            "14e5ac09c729b91c",
+            "fcd6426b18d24ce3",
+            "801cc708e62802ce",
+            "6f0bc14b000ff2a6",
             "128e972ed7ba3ed4",
             "2135a6c2eb7371e7",
             "851bbc4f893f44f0",
@@ -57,7 +63,7 @@
         "x": 354,
         "y": 79,
         "w": 232,
-        "h": 482,
+        "h": 722,
         "id": "9326d2530a306320",
         "z": "30c1cadb3f5445db"
     },
@@ -82,7 +88,7 @@
     {
         "type": "function",
         "name": "Feedforward",
-        "func": "// logger, usage: log(this, \"\");\nconst log = global.get('logger');\n\n// 1.  Settings\n// Below this water temperature the heating curve is replaced by the simple day schedule:\n// heat at this temperature from the start time until the inside temperature is reached.\nconst SIMPLE_WATER_TEMP = 24; // °C\n\n// 2.  Input\nconst ff = msg.feedforward || {};\nconst outside = parseFloat(ff.outside_temp);\nconst outsideAvg = parseFloat(ff.outside_temp_avg);\nconst inside = parseFloat(ff.inside_temp);\nconst minWater = parseFloat(ff.min_water_temp);\nconst maxWater = parseFloat(ff.max_water_temp);\nconst simpleFrom = parseFloat(ff.simple_outside_temp);\nconst simpleStop = parseFloat(ff.simple_stop_inside_temp);\nconst history = global.get(\"heat_pump_history\");\n\nif (!isFinite(outside)) {\n    log(this, \"Outside temperature unavailable\", \"warn\");\n    node.status({ fill: \"red\", shape: \"ring\", text: \"No outside temperature\" });\n    return null;\n}\n\nconst round = (v, digits) => (v === null || v === undefined || !isFinite(v)) ? null : Number(v.toFixed(digits));\nconst atOutside = (line) => line ? line.slope * outside + line.intercept : null;\n\n// 3.  Select the heating curve: water = slope * outside + intercept\nconst manual = { slope: parseFloat(ff.manual_slope), intercept: parseFloat(ff.manual_intercept) };\nconst historyFit = history?.fit?.water_target_temp;\n\nlet source = ff.source;\nlet curve = manual;\nif (source === \"History\") {\n    if (historyFit) {\n        curve = historyFit;\n    } else {\n        // History not calculated yet (e.g. just after a restart), fall back to the manual curve\n        log(this, \"No history curve available, using manual values\", \"warn\");\n        source = \"Manual (history unavailable)\";\n    }\n}\n\nif (!isFinite(curve.slope) || !isFinite(curve.intercept)) {\n    log(this, \"Heating curve incomplete\", \"warn\");\n    node.status({ fill: \"red\", shape: \"ring\", text: \"No heating curve\" });\n    return null;\n}\n\n// 4a. Curve: feedforward water temperature, limited to min / max\nlet mode = \"Curve\";\nlet heating = true;\nlet water = atOutside(curve);\nif (isFinite(minWater)) water = Math.max(water, minWater);\nif (isFinite(maxWater)) water = Math.min(water, maxWater);\n\n// 4b. Simple day schedule, effective from the set average outside temperature\nif (isFinite(outsideAvg) && isFinite(simpleFrom) && outsideAvg >= simpleFrom) {\n    mode = \"Simple\";\n    water = SIMPLE_WATER_TEMP;\n\n    // The heating day starts at the start time, before that time the previous day still counts\n    const [h, m] = String(ff.simple_start_time || \"00:00\").split(\":\").map(Number);\n    const now = new Date();\n    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h || 0, m || 0);\n    if (now < start) start.setDate(start.getDate() - 1);\n    const heatingDay = start.toISOString();\n\n    // Stop for the rest of the heating day once the inside temperature is reached\n    if (flow.get(\"simple_stopped_day\") !== heatingDay) {\n        if (!isFinite(inside)) {\n            log(this, \"Inside temperature unavailable, keep heating\", \"warn\");\n        } else if (isFinite(simpleStop) && inside >= simpleStop) {\n            log(this, `Inside temperature ${inside} °C reached, stop heating for today`);\n            flow.set(\"simple_stopped_day\", heatingDay);\n        }\n    }\n    heating = flow.get(\"simple_stopped_day\") !== heatingDay;\n}\n\n// 5.  Output\nmsg.feedforward = {\n    ...ff,\n    outside_temp: outside,\n    outside_temp_avg: round(outsideAvg, 1),\n    inside_temp: round(inside, 1),\n    source: source,\n    slope: curve.slope,\n    intercept: curve.intercept,\n    mode: mode,\n    heating: heating, // false: heat pump off for the rest of the heating day\n    water_temp: round(water, 1),\n    // expected values from the history at this outside temperature, for information\n    expected_power: round(atOutside(history?.fit?.power), 0),\n    expected_cop: round(atOutside(history?.fit?.cop), 2),\n};\n\nglobal.set(\"heat_pump_feedforward\", msg.feedforward);\n\nconst text = heating ? `${msg.feedforward.water_temp} °C` : \"Off for today\";\nnode.status({ fill: heating ? \"green\" : \"grey\", shape: \"dot\", text: `${text} @ ${outside} °C (${mode}, ${source})` });\nreturn msg;\n",
+        "func": "// logger, usage: log(this, \"\");\nconst log = global.get('logger');\n\n// 1.  Settings\n// Below this water temperature the heating curve is replaced by the simple day schedule:\n// heat at this temperature from the start time until the inside temperature is reached.\nconst SIMPLE_WATER_TEMP = 24; // °C\nconst MAX_FORECAST_AGE_H = 3;  // older cached forecasts are not used\n\n// 2.  Input\nconst ff = msg.feedforward || {};\nconst outside = parseFloat(ff.outside_temp);\nconst outsideAvg = parseFloat(ff.outside_temp_avg);\nconst inside = parseFloat(ff.inside_temp);\nconst minWater = parseFloat(ff.min_water_temp);\nconst maxWater = parseFloat(ff.max_water_temp);\nconst simpleFrom = parseFloat(ff.simple_outside_temp);\nconst simpleStop = parseFloat(ff.simple_stop_inside_temp);\nconst leadTime = parseFloat(ff.forecast_lead_time) || 0;       // h ahead\nconst window = parseFloat(ff.forecast_window) || 0;            // h averaged, from the lead time\nconst weight = parseFloat(ff.forecast_weight);                 // % forecast, rest current temperature\nconst simpleHours = parseFloat(ff.simple_forecast_hours) || 24; // h ahead, average for the simple schedule\nconst correctBias = ff.forecast_bias_correction === \"on\";       // shift the forecast to the measured temperature\nconst history = global.get(\"heat_pump_history\");\nconst forecast = flow.get(\"weather_forecast\"); // { fetched, list: [{ t, temp }] }\n\nconst HOUR_MS = 3_600_000;\nconst now = Date.now();\n\nif (!isFinite(outside)) {\n    log(this, \"Outside temperature unavailable\", \"warn\");\n    node.status({ fill: \"red\", shape: \"ring\", text: \"No outside temperature\" });\n    return null;\n}\n\nconst round = (v, digits) => (v === null || v === undefined || !isFinite(v)) ? null : Number(v.toFixed(digits));\n\n// 3.  Outside temperature: current or forecast\n// Forecast temperature at time t, linear between the hourly forecast points\nfunction forecastAt(t) {\n    const list = forecast.list;\n    if (t <= list[0].t) return list[0].temp;\n    for (let i = 1; i < list.length; i++) {\n        if (t <= list[i].t) {\n            const a = list[i - 1], b = list[i];\n            return a.temp + (b.temp - a.temp) * (t - a.t) / (b.t - a.t);\n        }\n    }\n    return list[list.length - 1].temp;\n}\n// Average forecast temperature over [from, from + hours], sampled every 15 minutes\nfunction forecastAverage(from, hours) {\n    const steps = Math.max(1, Math.round(hours * 4));\n    let sum = 0;\n    for (let i = 0; i < steps; i++) sum += forecastAt(from + (i + 0.5) * hours * HOUR_MS / steps);\n    return hours > 0 ? sum / steps : forecastAt(from);\n}\n\nlet outsideSource = ff.outside_source || \"Current\";\nlet outsideUsed = outside;     // used for the heating curve\nlet outsideAvgUsed = outsideAvg; // used to activate the simple schedule\nlet forecastTemp = null;\nlet forecastBias = 0;\nif (outsideSource === \"Forecast\") {\n    const fresh = forecast && Array.isArray(forecast.list) && forecast.list.length > 0 &&\n        now - forecast.fetched < MAX_FORECAST_AGE_H * HOUR_MS;\n    if (fresh) {\n        // The heat pump sensor often differs from the weather forecast (sun, defrost, location):\n        // optionally shift the whole forecast by the difference measured right now\n        if (correctBias) forecastBias = outside - forecastAt(now);\n        forecastTemp = forecastAverage(now + leadTime * HOUR_MS, window) + forecastBias;\n        const w = isFinite(weight) ? Math.min(Math.max(weight, 0), 100) / 100 : 1;\n        outsideUsed = outside + w * (forecastTemp - outside);\n        outsideAvgUsed = forecastAverage(now, simpleHours) + forecastBias;\n    } else {\n        log(this, \"No recent weather forecast, using the current outside temperature\", \"warn\");\n        outsideSource = \"Current (forecast unavailable)\";\n    }\n}\n\nconst atOutside = (line) => line ? line.slope * outsideUsed + line.intercept : null;\n\n// 4.  Select the heating curve: water = slope * outside + intercept\nconst manual = { slope: parseFloat(ff.manual_slope), intercept: parseFloat(ff.manual_intercept) };\nconst historyFit = history?.fit?.water_target_temp;\n\nlet source = ff.source;\nlet curve = manual;\nif (source === \"History\") {\n    if (historyFit) {\n        curve = historyFit;\n    } else {\n        // History not calculated yet (e.g. just after a restart), fall back to the manual curve\n        log(this, \"No history curve available, using manual values\", \"warn\");\n        source = \"Manual (history unavailable)\";\n    }\n}\n\nif (!isFinite(curve.slope) || !isFinite(curve.intercept)) {\n    log(this, \"Heating curve incomplete\", \"warn\");\n    node.status({ fill: \"red\", shape: \"ring\", text: \"No heating curve\" });\n    return null;\n}\n\n// 5a. Curve: feedforward water temperature, limited to min / max\nlet mode = \"Curve\";\nlet heating = true;\nlet water = atOutside(curve);\nif (isFinite(minWater)) water = Math.max(water, minWater);\nif (isFinite(maxWater)) water = Math.min(water, maxWater);\n\n// 5b. Simple day schedule, effective from the set average outside temperature\nif (isFinite(outsideAvgUsed) && isFinite(simpleFrom) && outsideAvgUsed >= simpleFrom) {\n    mode = \"Simple\";\n    water = SIMPLE_WATER_TEMP;\n\n    // The heating day starts at the start time, before that time the previous day still counts\n    const [h, m] = String(ff.simple_start_time || \"00:00\").split(\":\").map(Number);\n    const today = new Date(now);\n    const start = new Date(today.getFullYear(), today.getMonth(), today.getDate(), h || 0, m || 0);\n    if (now < start.getTime()) start.setDate(start.getDate() - 1);\n    const heatingDay = start.toISOString();\n\n    // Stop for the rest of the heating day once the inside temperature is reached\n    if (flow.get(\"simple_stopped_day\") !== heatingDay) {\n        if (!isFinite(inside)) {\n            log(this, \"Inside temperature unavailable, keep heating\", \"warn\");\n        } else if (isFinite(simpleStop) && inside >= simpleStop) {\n            log(this, `Inside temperature ${inside} °C reached, stop heating for today`);\n            flow.set(\"simple_stopped_day\", heatingDay);\n        }\n    }\n    heating = flow.get(\"simple_stopped_day\") !== heatingDay;\n}\n\n// 6.  Output\nmsg.feedforward = {\n    ...ff,\n    outside_temp: outside,\n    outside_temp_avg: round(outsideAvg, 1),\n    outside_source: outsideSource,\n    forecast_temp: round(forecastTemp, 1),\n    forecast_bias: round(forecastBias, 1),\n    outside_temp_used: round(outsideUsed, 1),        // heating curve\n    outside_temp_avg_used: round(outsideAvgUsed, 1), // simple schedule\n    inside_temp: round(inside, 1),\n    source: source,\n    slope: curve.slope,\n    intercept: curve.intercept,\n    mode: mode,\n    heating: heating, // false: heat pump off for the rest of the heating day\n    water_temp: round(water, 1),\n    // expected values from the history at this outside temperature, for information\n    expected_power: round(atOutside(history?.fit?.power), 0),\n    expected_cop: round(atOutside(history?.fit?.cop), 2),\n};\n\nglobal.set(\"heat_pump_feedforward\", msg.feedforward);\n\nconst text = heating ? `${msg.feedforward.water_temp} °C` : \"Off for today\";\nnode.status({ fill: heating ? \"green\" : \"grey\", shape: \"dot\", text: `${text} @ ${round(outsideUsed, 1)} °C (${mode}, ${source}, ${outsideSource})` });\nreturn msg;\n",
         "outputs": 1,
         "timeout": 0,
         "noerr": 0,
@@ -100,6 +106,312 @@
         "id": "1af7426268166ba5",
         "z": "30c1cadb3f5445db",
         "g": "d51727478b63d37b"
+    },
+    {
+        "type": "api-current-state",
+        "name": "Simple forecast hours",
+        "server": "176d29a.6f648d6",
+        "version": 3,
+        "outputs": 1,
+        "halt_if": "",
+        "halt_if_type": "str",
+        "halt_if_compare": "is",
+        "entity_id": "input_number.heat_pump_feedforward_simple_forecast_hours",
+        "state_type": "str",
+        "blockInputOverrides": true,
+        "outputProperties": [
+            {
+                "property": "payload",
+                "propertyType": "msg",
+                "value": "string",
+                "valueType": "entityState"
+            },
+            {
+                "property": "data",
+                "propertyType": "msg",
+                "value": "",
+                "valueType": "entity"
+            },
+            {
+                "property": "feedforward.simple_forecast_hours",
+                "propertyType": "msg",
+                "value": "number",
+                "valueType": "entityState"
+            }
+        ],
+        "for": "0",
+        "forType": "num",
+        "forUnits": "minutes",
+        "override_topic": false,
+        "state_location": "payload",
+        "override_payload": "msg",
+        "entity_location": "data",
+        "override_data": "msg",
+        "x": 470,
+        "y": 760,
+        "wires": [
+            [
+                "1af7426268166ba5"
+            ]
+        ],
+        "id": "339fd4c36f00fde7",
+        "z": "30c1cadb3f5445db",
+        "g": "9326d2530a306320"
+    },
+    {
+        "type": "api-current-state",
+        "name": "Forecast bias correction",
+        "server": "176d29a.6f648d6",
+        "version": 3,
+        "outputs": 1,
+        "halt_if": "",
+        "halt_if_type": "str",
+        "halt_if_compare": "is",
+        "entity_id": "input_boolean.heat_pump_feedforward_forecast_bias_correction",
+        "state_type": "str",
+        "blockInputOverrides": true,
+        "outputProperties": [
+            {
+                "property": "payload",
+                "propertyType": "msg",
+                "value": "string",
+                "valueType": "entityState"
+            },
+            {
+                "property": "data",
+                "propertyType": "msg",
+                "value": "",
+                "valueType": "entity"
+            },
+            {
+                "property": "feedforward.forecast_bias_correction",
+                "propertyType": "msg",
+                "value": "string",
+                "valueType": "entityState"
+            }
+        ],
+        "for": "0",
+        "forType": "num",
+        "forUnits": "minutes",
+        "override_topic": false,
+        "state_location": "payload",
+        "override_payload": "msg",
+        "entity_location": "data",
+        "override_data": "msg",
+        "x": 470,
+        "y": 720,
+        "wires": [
+            [
+                "339fd4c36f00fde7"
+            ]
+        ],
+        "id": "bc42dbb6eefe60f2",
+        "z": "30c1cadb3f5445db",
+        "g": "9326d2530a306320"
+    },
+    {
+        "type": "api-current-state",
+        "name": "Forecast weight",
+        "server": "176d29a.6f648d6",
+        "version": 3,
+        "outputs": 1,
+        "halt_if": "",
+        "halt_if_type": "str",
+        "halt_if_compare": "is",
+        "entity_id": "input_number.heat_pump_feedforward_forecast_weight",
+        "state_type": "str",
+        "blockInputOverrides": true,
+        "outputProperties": [
+            {
+                "property": "payload",
+                "propertyType": "msg",
+                "value": "string",
+                "valueType": "entityState"
+            },
+            {
+                "property": "data",
+                "propertyType": "msg",
+                "value": "",
+                "valueType": "entity"
+            },
+            {
+                "property": "feedforward.forecast_weight",
+                "propertyType": "msg",
+                "value": "number",
+                "valueType": "entityState"
+            }
+        ],
+        "for": "0",
+        "forType": "num",
+        "forUnits": "minutes",
+        "override_topic": false,
+        "state_location": "payload",
+        "override_payload": "msg",
+        "entity_location": "data",
+        "override_data": "msg",
+        "x": 470,
+        "y": 680,
+        "wires": [
+            [
+                "bc42dbb6eefe60f2"
+            ]
+        ],
+        "id": "14e5ac09c729b91c",
+        "z": "30c1cadb3f5445db",
+        "g": "9326d2530a306320"
+    },
+    {
+        "type": "api-current-state",
+        "name": "Forecast window",
+        "server": "176d29a.6f648d6",
+        "version": 3,
+        "outputs": 1,
+        "halt_if": "",
+        "halt_if_type": "str",
+        "halt_if_compare": "is",
+        "entity_id": "input_number.heat_pump_feedforward_forecast_window",
+        "state_type": "str",
+        "blockInputOverrides": true,
+        "outputProperties": [
+            {
+                "property": "payload",
+                "propertyType": "msg",
+                "value": "string",
+                "valueType": "entityState"
+            },
+            {
+                "property": "data",
+                "propertyType": "msg",
+                "value": "",
+                "valueType": "entity"
+            },
+            {
+                "property": "feedforward.forecast_window",
+                "propertyType": "msg",
+                "value": "number",
+                "valueType": "entityState"
+            }
+        ],
+        "for": "0",
+        "forType": "num",
+        "forUnits": "minutes",
+        "override_topic": false,
+        "state_location": "payload",
+        "override_payload": "msg",
+        "entity_location": "data",
+        "override_data": "msg",
+        "x": 470,
+        "y": 640,
+        "wires": [
+            [
+                "14e5ac09c729b91c"
+            ]
+        ],
+        "id": "fcd6426b18d24ce3",
+        "z": "30c1cadb3f5445db",
+        "g": "9326d2530a306320"
+    },
+    {
+        "type": "api-current-state",
+        "name": "Forecast lead time",
+        "server": "176d29a.6f648d6",
+        "version": 3,
+        "outputs": 1,
+        "halt_if": "",
+        "halt_if_type": "str",
+        "halt_if_compare": "is",
+        "entity_id": "input_number.heat_pump_feedforward_forecast_lead_time",
+        "state_type": "str",
+        "blockInputOverrides": true,
+        "outputProperties": [
+            {
+                "property": "payload",
+                "propertyType": "msg",
+                "value": "string",
+                "valueType": "entityState"
+            },
+            {
+                "property": "data",
+                "propertyType": "msg",
+                "value": "",
+                "valueType": "entity"
+            },
+            {
+                "property": "feedforward.forecast_lead_time",
+                "propertyType": "msg",
+                "value": "number",
+                "valueType": "entityState"
+            }
+        ],
+        "for": "0",
+        "forType": "num",
+        "forUnits": "minutes",
+        "override_topic": false,
+        "state_location": "payload",
+        "override_payload": "msg",
+        "entity_location": "data",
+        "override_data": "msg",
+        "x": 470,
+        "y": 600,
+        "wires": [
+            [
+                "fcd6426b18d24ce3"
+            ]
+        ],
+        "id": "801cc708e62802ce",
+        "z": "30c1cadb3f5445db",
+        "g": "9326d2530a306320"
+    },
+    {
+        "type": "api-current-state",
+        "name": "Outside source",
+        "server": "176d29a.6f648d6",
+        "version": 3,
+        "outputs": 1,
+        "halt_if": "",
+        "halt_if_type": "str",
+        "halt_if_compare": "is",
+        "entity_id": "input_select.heat_pump_feedforward_outside_source",
+        "state_type": "str",
+        "blockInputOverrides": true,
+        "outputProperties": [
+            {
+                "property": "payload",
+                "propertyType": "msg",
+                "value": "string",
+                "valueType": "entityState"
+            },
+            {
+                "property": "data",
+                "propertyType": "msg",
+                "value": "",
+                "valueType": "entity"
+            },
+            {
+                "property": "feedforward.outside_source",
+                "propertyType": "msg",
+                "value": "string",
+                "valueType": "entityState"
+            }
+        ],
+        "for": "0",
+        "forType": "num",
+        "forUnits": "minutes",
+        "override_topic": false,
+        "state_location": "payload",
+        "override_payload": "msg",
+        "entity_location": "data",
+        "override_data": "msg",
+        "x": 470,
+        "y": 560,
+        "wires": [
+            [
+                "801cc708e62802ce"
+            ]
+        ],
+        "id": "6f0bc14b000ff2a6",
+        "z": "30c1cadb3f5445db",
+        "g": "9326d2530a306320"
     },
     {
         "type": "api-current-state",
@@ -145,7 +457,7 @@
         "y": 520,
         "wires": [
             [
-                "1af7426268166ba5"
+                "6f0bc14b000ff2a6"
             ]
         ],
         "id": "128e972ed7ba3ed4",
@@ -714,6 +1026,136 @@
         "g": "7b5ee698cac28b91"
     },
     {
+        "type": "group",
+        "name": "Weather forecast",
+        "style": {
+            "label": true
+        },
+        "nodes": [
+            "e2dbc390e59da5d7",
+            "741a2d440a256058",
+            "5c224ddea6992867",
+            "0c62f69a9176d4ea"
+        ],
+        "x": 14,
+        "y": 239,
+        "w": 312,
+        "h": 162,
+        "id": "d2939b7cf9bdd0eb",
+        "z": "30c1cadb3f5445db"
+    },
+    {
+        "type": "function",
+        "name": "Cache forecast",
+        "func": "// logger, usage: log(this, \"\");\nconst log = global.get('logger');\n\n// Cache the hourly forecast as [{ t: ms, temp: °C }], read by the 'Feedforward' node\nconst response = msg.payload || {};\nconst list = (response[\"weather.forecast_home\"] ?? Object.values(response)[0])?.forecast;\n\nif (!Array.isArray(list) || list.length === 0) {\n    log(this, \"Weather forecast missing or empty\", \"warn\");\n    node.status({ fill: \"red\", shape: \"ring\", text: \"No forecast\" });\n    return null;\n}\n\nconst points = list\n    .map(f => ({ t: new Date(f.datetime).getTime(), temp: parseFloat(f.temperature) }))\n    .filter(p => isFinite(p.t) && isFinite(p.temp))\n    .sort((a, b) => a.t - b.t);\n\nflow.set(\"weather_forecast\", { fetched: Date.now(), list: points });\nnode.status({ fill: \"green\", shape: \"dot\", text: `${points.length} hours, now ${points[0]?.temp} °C` });\n\n// Recalculate the feedforward with the new forecast\nreturn {};\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 230,
+        "y": 320,
+        "wires": [
+            [
+                "3bed5c43fbcf1646"
+            ]
+        ],
+        "id": "e2dbc390e59da5d7",
+        "z": "30c1cadb3f5445db",
+        "g": "d2939b7cf9bdd0eb"
+    },
+    {
+        "type": "debug",
+        "name": "Forecast",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 230,
+        "y": 360,
+        "wires": [],
+        "id": "741a2d440a256058",
+        "z": "30c1cadb3f5445db",
+        "g": "d2939b7cf9bdd0eb"
+    },
+    {
+        "type": "api-call-service",
+        "name": "Hourly forecast",
+        "server": "176d29a.6f648d6",
+        "version": 7,
+        "debugenabled": false,
+        "action": "weather.get_forecasts",
+        "floorId": [],
+        "areaId": [],
+        "deviceId": [],
+        "entityId": [
+            "weather.forecast_home"
+        ],
+        "labelId": [],
+        "data": "{\"type\": \"hourly\"}",
+        "dataType": "json",
+        "mergeContext": "",
+        "mustacheAltTags": false,
+        "outputProperties": [
+            {
+                "property": "payload",
+                "propertyType": "msg",
+                "value": "",
+                "valueType": "results"
+            }
+        ],
+        "queue": "none",
+        "blockInputOverrides": true,
+        "domain": "weather",
+        "service": "get_forecasts",
+        "x": 230,
+        "y": 280,
+        "wires": [
+            [
+                "e2dbc390e59da5d7",
+                "741a2d440a256058"
+            ]
+        ],
+        "id": "5c224ddea6992867",
+        "z": "30c1cadb3f5445db",
+        "g": "d2939b7cf9bdd0eb"
+    },
+    {
+        "type": "inject",
+        "name": "Every 30 min",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "1800",
+        "crontab": "",
+        "once": true,
+        "onceDelay": "10",
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 100,
+        "y": 280,
+        "wires": [
+            [
+                "5c224ddea6992867"
+            ]
+        ],
+        "id": "0c62f69a9176d4ea",
+        "z": "30c1cadb3f5445db",
+        "g": "d2939b7cf9bdd0eb"
+    },
+    {
         "type": "server-state-changed",
         "name": "User input",
         "server": "176d29a.6f648d6",
@@ -733,6 +1175,12 @@
                 "input_number.heat_pump_feedforward_simple_outside_temperature",
                 "input_datetime.heat_pump_feedforward_simple_start_time",
                 "input_number.heat_pump_feedforward_simple_stop_inside_temperature",
+                "input_select.heat_pump_feedforward_outside_source",
+                "input_number.heat_pump_feedforward_forecast_lead_time",
+                "input_number.heat_pump_feedforward_forecast_window",
+                "input_number.heat_pump_feedforward_forecast_weight",
+                "input_boolean.heat_pump_feedforward_forecast_bias_correction",
+                "input_number.heat_pump_feedforward_simple_forecast_hours",
                 "sensor.heat_pump_history"
             ],
             "substring": [],
@@ -830,7 +1278,7 @@
             "518ae76f032fbbbe"
         ],
         "x": 14,
-        "y": 599,
+        "y": 839,
         "w": 252,
         "h": 82,
         "id": "ea4768efe78f4b4f",
@@ -848,7 +1296,7 @@
         "statusVal": "",
         "statusType": "auto",
         "x": 230,
-        "y": 640,
+        "y": 880,
         "wires": [],
         "id": "4d9c58bfbe56084a",
         "z": "30c1cadb3f5445db",
@@ -865,7 +1313,7 @@
         "finalize": "",
         "libs": [],
         "x": 150,
-        "y": 640,
+        "y": 880,
         "wires": [
             [
                 "4d9c58bfbe56084a"
@@ -881,7 +1329,7 @@
         "scope": null,
         "uncaught": false,
         "x": 65,
-        "y": 640,
+        "y": 880,
         "wires": [
             [
                 "07f7c8b9e829f792"
