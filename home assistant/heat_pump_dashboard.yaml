@@ -19,6 +19,9 @@ views:
           - type: tile
             entity: sensor.sparrow_p60_heat_pump_outside_temperature
             name: Outside temperature
+          - type: tile
+            entity: binary_sensor.heat_pump_feedforward_heating
+            name: Heating
           - type: entities
             entities:
               - entity: input_select.heat_pump_feedforward_source
@@ -27,7 +30,7 @@ views:
           - type: markdown
             content: |-
               {% set ff = 'sensor.heat_pump_feedforward_water_temperature' %}
-              **Active curve:** {{ state_attr(ff, 'source') }}
+              **Mode:** {{ state_attr(ff, 'mode') }} · **Active curve:** {{ state_attr(ff, 'source') }}
 
               water = {{ state_attr(ff, 'slope') }} × outside + {{ state_attr(ff, 'intercept') }}
 
@@ -43,6 +46,30 @@ views:
               - entity: input_number.heat_pump_feedforward_manual_intercept
               - entity: script.heat_pump_feedforward_copy_history_to_manual
                 name: Copy history curve to manual
+          - type: heading
+            heading: Simple day schedule (below 24 °C water)
+            heading_style: subtitle
+            icon: mdi:weather-partly-cloudy
+          - type: entities
+            entities:
+              - entity: input_number.heat_pump_feedforward_simple_outside_temperature
+                name: Effective from average outside temp
+              - entity: input_datetime.heat_pump_feedforward_simple_start_time
+                name: Start heating at
+              - entity: input_number.heat_pump_feedforward_simple_stop_inside_temperature
+                name: Stop for the day at inside temp
+              - entity: sensor.heat_pump_outside_temperature_24h_average
+                name: Outside temp 24h average
+              - entity: sensor.heat_pump_inside_temperature
+                name: Inside temperature
+          - type: markdown
+            content: |-
+              {% set ff = 'sensor.heat_pump_feedforward_water_temperature' %}
+              {% set slope = state_attr(ff, 'slope') | float(0) %}
+              {% set intercept = state_attr(ff, 'intercept') | float(0) %}
+              {% if slope < 0 %}
+              The active curve reaches 24 °C water at **{{ ((24 - intercept) / slope) | round(1) }} °C** outside.
+              {% endif %}
           - type: history-graph
             title: Water temperature
             hours_to_show: 48
@@ -53,6 +80,10 @@ views:
                 name: Target
               - entity: sensor.sparrow_p60_heat_pump_outside_temperature
                 name: Outside
+              - entity: sensor.heat_pump_inside_temperature
+                name: Inside
+              - entity: binary_sensor.heat_pump_feedforward_heating
+                name: Heating
 
       - type: grid
         cards:

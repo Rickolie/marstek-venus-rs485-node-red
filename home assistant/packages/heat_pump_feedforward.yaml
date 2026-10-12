@@ -19,6 +19,17 @@ homeassistant:
       state_class: measurement
 
 ###########################################################################################################
+# INPUT_DATETIME
+###########################################################################################################
+input_datetime:
+  # Simple day schedule | time to start heating, default midnight
+  heat_pump_feedforward_simple_start_time:
+    name: "Simple schedule start time"
+    has_date: false
+    has_time: true
+    icon: mdi:clock-start
+
+###########################################################################################################
 # INPUT_SELECT
 ###########################################################################################################
 input_select:
@@ -69,6 +80,38 @@ input_number:
     unit_of_measurement: "°C"
     icon: mdi:thermometer-high
 
+  # Simple day schedule (mild weather): heat at 24 °C water temperature until the inside temperature is reached
+  heat_pump_feedforward_simple_outside_temperature:
+    name: "Simple schedule from average outside temperature"
+    min: -10
+    max: 25
+    step: 0.5
+    unit_of_measurement: "°C"
+    icon: mdi:sun-thermometer-outline
+
+  heat_pump_feedforward_simple_stop_inside_temperature:
+    name: "Simple schedule stop at inside temperature"
+    min: 15
+    max: 25
+    step: 0.1
+    unit_of_measurement: "°C"
+    icon: mdi:home-thermometer-outline
+
+###########################################################################################################
+# SENSOR
+###########################################################################################################
+sensor:
+  # Average outside temperature over the last 24 hours, time-weighted
+  - platform: statistics
+    name: "Heat pump outside temperature 24h average"
+    unique_id: heat_pump_outside_temperature_24h_average
+    entity_id: sensor.sparrow_p60_heat_pump_outside_temperature
+    state_characteristic: average_linear
+    max_age:
+      hours: 24
+    sampling_size: 10000
+    precision: 1
+
 ###########################################################################################################
 # SCRIPT
 ###########################################################################################################
@@ -96,6 +139,16 @@ script:
 # TEMPLATE
 ###########################################################################################################
 template:
+  # Inside temperature | alias used by the Node-RED feedforward flow
+  - sensor:
+      - name: "Heat pump inside temperature"
+        unique_id: heat_pump_inside_temperature
+        state: "{{ states('sensor.inside_temperature') }}" # << SET YOUR INSIDE TEMPERATURE SENSOR HERE
+        availability: "{{ states('sensor.inside_temperature') | is_number }}" # << AND HERE
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+
   # Heat pump history | sent by Node-RED once a day
   - trigger:
       - trigger: event
@@ -143,9 +196,21 @@ template:
         state_class: measurement
         state: "{{ trigger.event.data.water_temp }}"
         attributes:
+          mode: "{{ trigger.event.data.mode }}"
           source: "{{ trigger.event.data.source }}"
           slope: "{{ trigger.event.data.slope }}"
           intercept: "{{ trigger.event.data.intercept }}"
           outside_temp: "{{ trigger.event.data.outside_temp }}"
           expected_power: "{{ trigger.event.data.expected_power }}"
           expected_cop: "{{ trigger.event.data.expected_cop }}"
+          outside_temp_avg: "{{ trigger.event.data.outside_temp_avg }}"
+          inside_temp: "{{ trigger.event.data.inside_temp }}"
+
+    binary_sensor:
+      # Off: the simple day schedule reached the inside temperature, heat pump off until the next start time
+      - name: "Heat pump feedforward heating"
+        unique_id: heat_pump_feedforward_heating
+        icon: mdi:heat-pump-outline
+        state: "{{ trigger.event.data.heating }}"
+        attributes:
+          mode: "{{ trigger.event.data.mode }}"
