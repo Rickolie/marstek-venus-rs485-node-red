@@ -1,0 +1,171 @@
+# Heat pump feedforward dashboard
+# Add a new dashboard in Home Assistant, open the raw configuration editor and paste this file.
+views:
+  - type: sections
+    path: heat-pump
+    max_columns: 3
+    title: Heat pump
+    icon: mdi:heat-pump
+    sections:
+      - type: grid
+        cards:
+          - type: heading
+            heading: Feedforward
+            heading_style: title
+            icon: mdi:thermometer-auto
+          - type: tile
+            entity: sensor.heat_pump_feedforward_water_temperature
+            name: Feedforward water temperature
+          - type: tile
+            entity: sensor.sparrow_p60_heat_pump_outside_temperature
+            name: Outside temperature
+          - type: tile
+            entity: binary_sensor.heat_pump_feedforward_heating
+            name: Heating
+          - type: entities
+            entities:
+              - entity: input_select.heat_pump_feedforward_source
+              - entity: input_number.heat_pump_feedforward_min_water_temperature
+              - entity: input_number.heat_pump_feedforward_max_water_temperature
+          - type: markdown
+            content: |-
+              {% set ff = 'sensor.heat_pump_feedforward_water_temperature' %}
+              **Outside:** {{ state_attr(ff, 'outside_temp_used') }} °C ({{ state_attr(ff, 'outside_source') }})
+
+              **Mode:** {{ state_attr(ff, 'mode') }} · **Active curve:** {{ state_attr(ff, 'source') }}
+
+              water = {{ state_attr(ff, 'slope') }} × outside + {{ state_attr(ff, 'intercept') }}
+
+              {% if state_attr(ff, 'expected_power') is not none %}
+              Expected at {{ state_attr(ff, 'outside_temp_used') }} °C outside:
+              {{ state_attr(ff, 'expected_power') }} W, COP {{ state_attr(ff, 'expected_cop') }}
+              {% endif %}
+          - type: heading
+            heading: Manual heating curve
+            heading_style: subtitle
+            icon: mdi:pen
+          - type: entities
+            entities:
+              - entity: input_number.heat_pump_feedforward_manual_slope
+              - entity: input_number.heat_pump_feedforward_manual_intercept
+              - entity: script.heat_pump_feedforward_copy_history_to_manual
+                name: Copy history curve to manual
+          - type: heading
+            heading: Outside temperature
+            heading_style: subtitle
+            icon: mdi:weather-cloudy-clock
+          - type: entities
+            entities:
+              - entity: input_select.heat_pump_feedforward_outside_source
+                name: Use
+              - entity: input_number.heat_pump_feedforward_forecast_lead_time
+                name: Lead time
+              - entity: input_number.heat_pump_feedforward_forecast_window
+                name: Average over
+              - entity: input_number.heat_pump_feedforward_forecast_weight
+                name: Forecast weight
+              - entity: input_boolean.heat_pump_feedforward_forecast_bias_correction
+              - entity: input_number.heat_pump_feedforward_simple_forecast_hours
+                name: Simple schedule average over next
+              - entity: script.heat_pump_feedforward_set_defaults
+                name: Set default values
+          - type: markdown
+            content: |-
+              {% set ff = 'sensor.heat_pump_feedforward_water_temperature' %}
+              | | °C |
+              |---|---:|
+              | Measured now | {{ state_attr(ff, 'outside_temp') }} |
+              | Forecast (lead + window) | {{ state_attr(ff, 'forecast_temp') if state_attr(ff, 'forecast_temp') is not none else '-' }} |
+              | Bias correction | {{ state_attr(ff, 'forecast_bias') }} |
+              | **Used for curve** | **{{ state_attr(ff, 'outside_temp_used') }}** |
+              | Measured 24h average | {{ state_attr(ff, 'outside_temp_avg') }} |
+              | **Used for simple schedule** | **{{ state_attr(ff, 'outside_temp_avg_used') }}** |
+          - type: heading
+            heading: Simple day schedule (below 24 °C water)
+            heading_style: subtitle
+            icon: mdi:weather-partly-cloudy
+          - type: entities
+            entities:
+              - entity: input_number.heat_pump_feedforward_simple_outside_temperature
+                name: Effective from average outside temp
+              - entity: input_datetime.heat_pump_feedforward_simple_start_time
+                name: Start heating at
+              - entity: input_number.heat_pump_feedforward_simple_stop_inside_temperature
+                name: Stop for the day at inside temp
+              - entity: sensor.heat_pump_inside_temperature
+                name: Inside temperature
+          - type: markdown
+            content: |-
+              {% set ff = 'sensor.heat_pump_feedforward_water_temperature' %}
+              {% set slope = state_attr(ff, 'slope') | float(0) %}
+              {% set intercept = state_attr(ff, 'intercept') | float(0) %}
+              {% if slope < 0 %}
+              The active curve reaches 24 °C water at **{{ ((24 - intercept) / slope) | round(1) }} °C** outside.
+              {% endif %}
+          - type: history-graph
+            title: Water temperature
+            hours_to_show: 48
+            entities:
+              - entity: sensor.heat_pump_feedforward_water_temperature
+                name: Feedforward
+              - entity: sensor.sparrow_p60_heat_pump_water_target_temperature
+                name: Target
+              - entity: sensor.sparrow_p60_heat_pump_outside_temperature
+                name: Outside
+              - entity: sensor.heat_pump_feedforward_outside_temperature
+                name: Outside used
+              - entity: sensor.heat_pump_inside_temperature
+                name: Inside
+              - entity: binary_sensor.heat_pump_feedforward_heating
+                name: Heating
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: History
+            heading_style: title
+            icon: mdi:history
+          - type: entities
+            entities:
+              - entity: sensor.heat_pump_history_water_slope
+                name: History slope
+              - entity: sensor.heat_pump_history_water_intercept
+                name: History intercept
+              - entity: sensor.heat_pump_history
+                name: Days used
+          - type: markdown
+            content: |-
+              {% set h = 'sensor.heat_pump_history' %}
+              {% set fit = state_attr(h, 'fit') or {} %}
+              {% set avg = state_attr(h, 'averages') or {} %}
+
+              **{{ state_attr(h, 'first_day') }} – {{ state_attr(h, 'last_day') }}**
+              ({{ state_attr(h, 'days_from_history') }} days history,
+              {{ state_attr(h, 'days_from_statistics') }} days statistics,
+              {{ state_attr(h, 'days_skipped') }} skipped)
+
+              | Fit (× outside + …) | Slope | Intercept | Days |
+              |---|---|---|---|
+              {% for key, name in [('water_target_temp', 'Water °C'), ('power', 'Power W'), ('cop', 'COP')] -%}
+              {% set f = fit[key] if fit[key] is mapping else {} -%}
+              | {{ name }} | {{ f.slope | default('-') }} | {{ f.intercept | default('-') }} | {{ f.days | default('-') }} |
+              {% endfor %}
+
+              Averages: {{ avg.outside_temp_avg }} °C outside, {{ avg.water_target_temp_avg }} °C water,
+              {{ avg.power_avg }} W ({{ avg.energy }} kWh/day), COP {{ avg.cop_avg }}
+
+              Updated: {{ state_attr(h, 'updated') }}
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Per outside temperature
+            heading_style: title
+            icon: mdi:table
+          - type: markdown
+            content: |-
+              | Outside °C | Days | Water °C | Power W | kWh/day | COP |
+              |---:|---:|---:|---:|---:|---:|
+              {% for r in state_attr('sensor.heat_pump_history', 'curve') or [] -%}
+              | {{ r.outside_temp }} | {{ r.days }} | {{ r.water_target_temp if r.water_target_temp is not none else '-' }} | {{ r.power }} | {{ r.energy }} | {{ r.cop if r.cop is not none else '-' }} |
+              {% endfor %}
