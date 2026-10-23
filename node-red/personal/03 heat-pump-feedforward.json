@@ -53,12 +53,15 @@
             "091b7e1fb717b3e8",
             "39152b89913c9783",
             "15d7dbdbdb89ab9b",
-            "d9144c3b56bdccaf"
+            "d9144c3b56bdccaf",
+            "f6cb76f12d966055",
+            "efdbf1d1ff999bbe",
+            "9da5069e487105d2"
         ],
         "x": 564,
         "y": 59,
         "w": 302,
-        "h": 762
+        "h": 882
     },
     {
         "id": "332bfaf514371b07",
@@ -123,11 +126,12 @@
             "f20a4c4f53d0851c",
             "ca22e09f891966e8",
             "9cbb17e1cdaade8b",
-            "6d95d97b65be60ea"
+            "6d95d97b65be60ea",
+            "a9c85c902838a4b1"
         ],
         "x": 944,
         "y": 219,
-        "w": 1162,
+        "w": 1356,
         "h": 142
     },
     {
@@ -198,7 +202,7 @@
         "type": "comment",
         "z": "b1add4e3c1434652",
         "name": "Heat Pump Feedforward (readme)",
-        "info": "# Heat pump feedforward\n\nCalculates the feedforward water temperature, every 5 minutes and on every input change.\nEach step is a group, from left to right:\n\n1. **Input**: all settings from Home Assistant\n2. **Outside temperature**: `input_select.heat_pump_feedforward_outside_source`\n   - *Current*: heat pump outside temperature, 24h average for the simple schedule\n   - *Forecast*: Met.no hourly forecast (`weather.forecast_home`, fetched every 30 minutes)\n     - heating curve: average over `window` hours starting `lead time` hours ahead, mixed with the current temperature by `weight`\n     - simple schedule: average over the next `simple forecast hours`\n     - bias correction (optional): shift the forecast by (measured - forecast) right now\n     - no forecast of the last 3 hours: use Current\n3. **Heating curve**: `water = slope * outside + intercept`, limited to min / max.\n   `input_select.heat_pump_feedforward_source`: *Manual* or *History* (from the Heat Pump History flow)\n4. **Simple day schedule**: when the average outside temperature >= the set value:\n   heat at 24 °C water from the start time until the inside temperature is reached, then off for the day\n5. **Output**: `global.heat_pump_feedforward` and event `heat_pump_feedforward`\n   -> `sensor.heat_pump_feedforward_water_temperature`, `binary_sensor.heat_pump_feedforward_heating`\n\n`heating` false: switch the heat pump off.",
+        "info": "# Heat pump feedforward\n\nCalculates the feedforward water temperature, every 5 minutes and on every input change.\nEach step is a group, from left to right:\n\n1. **Input**: all settings from Home Assistant\n2. **Outside temperature**: `input_select.heat_pump_feedforward_outside_source`\n   - *Current*: heat pump outside temperature, 24h average for the simple schedule\n   - *Forecast*: Met.no hourly forecast (`weather.forecast_home`, fetched every 30 minutes)\n     - heating curve: average over `window` hours starting `lead time` hours ahead, mixed with the current temperature by `weight`\n     - simple schedule: average over the next `simple forecast hours`\n     - bias correction (optional): shift the forecast by (measured - forecast) right now\n     - no forecast of the last 3 hours: use Current\n3. **Heating curve**, limited to min / max. `input_select.heat_pump_feedforward_source`:\n   - *Manual*: lookup table `input_number.feedforward_home_min20` / `_min10` / `_0` / `_plus10` / `_plus20`\n     (water temperature at -20 / -10 / 0 / +10 / +20 °C outside), linear in between,\n     the end value beyond -20 and +20 °C\n   - *History*: `water = slope * outside + intercept` (from the Heat Pump History flow)\n4. **Simple day schedule**: when the average outside temperature >= the set value:\n   heat at 24 °C water from the start time until the inside temperature is reached, then off for the day\n5. **Output**: `global.heat_pump_feedforward` and event `heat_pump_feedforward`\n   -> `sensor.heat_pump_feedforward_water_temperature`, `binary_sensor.heat_pump_feedforward_heating`\n\n`heating` false: switch the heat pump off.",
         "x": 160,
         "y": 40,
         "wires": []
@@ -217,7 +221,7 @@
         "finalize": "",
         "libs": [],
         "x": 710,
-        "y": 780,
+        "y": 900,
         "wires": [
             [
                 "d9144c3b56bdccaf"
@@ -268,7 +272,7 @@
         "entity_location": "data",
         "override_data": "msg",
         "x": 710,
-        "y": 740,
+        "y": 860,
         "wires": [
             [
                 "bc6fea5f97fbcb36"
@@ -319,7 +323,7 @@
         "entity_location": "data",
         "override_data": "msg",
         "x": 710,
-        "y": 700,
+        "y": 820,
         "wires": [
             [
                 "928f63716c33431b"
@@ -370,7 +374,7 @@
         "entity_location": "data",
         "override_data": "msg",
         "x": 710,
-        "y": 660,
+        "y": 780,
         "wires": [
             [
                 "a009aa08abe9e019"
@@ -421,7 +425,7 @@
         "entity_location": "data",
         "override_data": "msg",
         "x": 710,
-        "y": 620,
+        "y": 740,
         "wires": [
             [
                 "9d6957f398339e71"
@@ -472,7 +476,7 @@
         "entity_location": "data",
         "override_data": "msg",
         "x": 710,
-        "y": 580,
+        "y": 700,
         "wires": [
             [
                 "a598f4def45309bf"
@@ -484,14 +488,14 @@
         "type": "api-current-state",
         "z": "b1add4e3c1434652",
         "g": "9ccab42d019ff166",
-        "name": "Manual intercept",
+        "name": "Feedforward -10 °C",
         "server": "176d29a.6f648d6",
         "version": 3,
         "outputs": 1,
         "halt_if": "",
         "halt_if_type": "str",
         "halt_if_compare": "is",
-        "entity_id": "input_number.heat_pump_feedforward_manual_intercept",
+        "entity_id": "input_number.feedforward_home_min10",
         "state_type": "str",
         "blockInputOverrides": true,
         "outputProperties": [
@@ -508,7 +512,7 @@
                 "valueType": "entity"
             },
             {
-                "property": "feedforward.manual_intercept",
+                "property": "feedforward.table_min10",
                 "propertyType": "msg",
                 "value": "number",
                 "valueType": "entityState"
@@ -526,23 +530,23 @@
         "y": 540,
         "wires": [
             [
-                "8678632437d3f68d"
+                "f6cb76f12d966055"
             ]
         ]
     },
     {
-        "id": "6ac6d1bebe09fc3e",
+        "id": "f6cb76f12d966055",
         "type": "api-current-state",
         "z": "b1add4e3c1434652",
         "g": "9ccab42d019ff166",
-        "name": "Manual slope",
+        "name": "Feedforward 0 °C",
         "server": "176d29a.6f648d6",
         "version": 3,
         "outputs": 1,
         "halt_if": "",
         "halt_if_type": "str",
         "halt_if_compare": "is",
-        "entity_id": "input_number.heat_pump_feedforward_manual_slope",
+        "entity_id": "input_number.feedforward_home_0",
         "state_type": "str",
         "blockInputOverrides": true,
         "outputProperties": [
@@ -559,7 +563,160 @@
                 "valueType": "entity"
             },
             {
-                "property": "feedforward.manual_slope",
+                "property": "feedforward.table_0",
+                "propertyType": "msg",
+                "value": "number",
+                "valueType": "entityState"
+            }
+        ],
+        "for": "0",
+        "forType": "num",
+        "forUnits": "minutes",
+        "override_topic": false,
+        "state_location": "payload",
+        "override_payload": "msg",
+        "entity_location": "data",
+        "override_data": "msg",
+        "x": 710,
+        "y": 580,
+        "wires": [
+            [
+                "efdbf1d1ff999bbe"
+            ]
+        ]
+    },
+    {
+        "id": "efdbf1d1ff999bbe",
+        "type": "api-current-state",
+        "z": "b1add4e3c1434652",
+        "g": "9ccab42d019ff166",
+        "name": "Feedforward +10 °C",
+        "server": "176d29a.6f648d6",
+        "version": 3,
+        "outputs": 1,
+        "halt_if": "",
+        "halt_if_type": "str",
+        "halt_if_compare": "is",
+        "entity_id": "input_number.feedforward_home_plus10",
+        "state_type": "str",
+        "blockInputOverrides": true,
+        "outputProperties": [
+            {
+                "property": "payload",
+                "propertyType": "msg",
+                "value": "string",
+                "valueType": "entityState"
+            },
+            {
+                "property": "data",
+                "propertyType": "msg",
+                "value": "",
+                "valueType": "entity"
+            },
+            {
+                "property": "feedforward.table_plus10",
+                "propertyType": "msg",
+                "value": "number",
+                "valueType": "entityState"
+            }
+        ],
+        "for": "0",
+        "forType": "num",
+        "forUnits": "minutes",
+        "override_topic": false,
+        "state_location": "payload",
+        "override_payload": "msg",
+        "entity_location": "data",
+        "override_data": "msg",
+        "x": 710,
+        "y": 620,
+        "wires": [
+            [
+                "9da5069e487105d2"
+            ]
+        ]
+    },
+    {
+        "id": "9da5069e487105d2",
+        "type": "api-current-state",
+        "z": "b1add4e3c1434652",
+        "g": "9ccab42d019ff166",
+        "name": "Feedforward +20 °C",
+        "server": "176d29a.6f648d6",
+        "version": 3,
+        "outputs": 1,
+        "halt_if": "",
+        "halt_if_type": "str",
+        "halt_if_compare": "is",
+        "entity_id": "input_number.feedforward_home_plus20",
+        "state_type": "str",
+        "blockInputOverrides": true,
+        "outputProperties": [
+            {
+                "property": "payload",
+                "propertyType": "msg",
+                "value": "string",
+                "valueType": "entityState"
+            },
+            {
+                "property": "data",
+                "propertyType": "msg",
+                "value": "",
+                "valueType": "entity"
+            },
+            {
+                "property": "feedforward.table_plus20",
+                "propertyType": "msg",
+                "value": "number",
+                "valueType": "entityState"
+            }
+        ],
+        "for": "0",
+        "forType": "num",
+        "forUnits": "minutes",
+        "override_topic": false,
+        "state_location": "payload",
+        "override_payload": "msg",
+        "entity_location": "data",
+        "override_data": "msg",
+        "x": 710,
+        "y": 660,
+        "wires": [
+            [
+                "8678632437d3f68d"
+            ]
+        ]
+    },
+    {
+        "id": "6ac6d1bebe09fc3e",
+        "type": "api-current-state",
+        "z": "b1add4e3c1434652",
+        "g": "9ccab42d019ff166",
+        "name": "Feedforward -20 °C",
+        "server": "176d29a.6f648d6",
+        "version": 3,
+        "outputs": 1,
+        "halt_if": "",
+        "halt_if_type": "str",
+        "halt_if_compare": "is",
+        "entity_id": "input_number.feedforward_home_min20",
+        "state_type": "str",
+        "blockInputOverrides": true,
+        "outputProperties": [
+            {
+                "property": "payload",
+                "propertyType": "msg",
+                "value": "string",
+                "valueType": "entityState"
+            },
+            {
+                "property": "data",
+                "propertyType": "msg",
+                "value": "",
+                "valueType": "entity"
+            },
+            {
+                "property": "feedforward.table_min20",
                 "propertyType": "msg",
                 "value": "number",
                 "valueType": "entityState"
@@ -1164,8 +1321,11 @@
                 "input_boolean.heat_pump_feedforward_forecast_bias_correction",
                 "input_number.heat_pump_feedforward_simple_forecast_hours",
                 "input_select.heat_pump_feedforward_source",
-                "input_number.heat_pump_feedforward_manual_slope",
-                "input_number.heat_pump_feedforward_manual_intercept",
+                "input_number.feedforward_home_min20",
+                "input_number.feedforward_home_min10",
+                "input_number.feedforward_home_0",
+                "input_number.feedforward_home_plus10",
+                "input_number.feedforward_home_plus20",
                 "input_number.heat_pump_feedforward_min_water_temperature",
                 "input_number.heat_pump_feedforward_max_water_temperature",
                 "input_number.heat_pump_feedforward_simple_outside_temperature",
@@ -1732,6 +1892,13 @@
                 "pt": "msg",
                 "to": "$globalContext(\"heat_pump_history\").fit.water_target_temp.intercept",
                 "tot": "jsonata"
+            },
+            {
+                "t": "set",
+                "p": "feedforward.water_curve",
+                "pt": "msg",
+                "to": "feedforward.slope * feedforward.outside_temp_used + feedforward.intercept",
+                "tot": "jsonata"
             }
         ],
         "action": "",
@@ -1780,21 +1947,14 @@
         "type": "change",
         "z": "b1add4e3c1434652",
         "g": "484d4b3a7a26d554",
-        "name": "Use manual curve",
+        "name": "Manual lookup table",
         "rules": [
             {
                 "t": "set",
-                "p": "feedforward.slope",
+                "p": "feedforward.table",
                 "pt": "msg",
-                "to": "feedforward.manual_slope",
-                "tot": "msg"
-            },
-            {
-                "t": "set",
-                "p": "feedforward.intercept",
-                "pt": "msg",
-                "to": "feedforward.manual_intercept",
-                "tot": "msg"
+                "to": "[\n    {\"outside\": -20, \"water\": feedforward.table_min20},\n    {\"outside\": -10, \"water\": feedforward.table_min10},\n    {\"outside\": 0, \"water\": feedforward.table_0},\n    {\"outside\": 10, \"water\": feedforward.table_plus10},\n    {\"outside\": 20, \"water\": feedforward.table_plus20}\n]",
+                "tot": "jsonata"
             }
         ],
         "action": "",
@@ -1803,6 +1963,34 @@
         "to": "",
         "reg": false,
         "x": 1700,
+        "y": 320,
+        "wires": [
+            [
+                "a9c85c902838a4b1"
+            ]
+        ]
+    },
+    {
+        "id": "a9c85c902838a4b1",
+        "type": "change",
+        "z": "b1add4e3c1434652",
+        "g": "484d4b3a7a26d554",
+        "name": "Interpolate lookup table",
+        "rules": [
+            {
+                "t": "set",
+                "p": "feedforward.water_curve",
+                "pt": "msg",
+                "to": "(\n    $table := feedforward.table^(outside);\n    $x := feedforward.outside_temp_used;\n    $x <= $table[0].outside ? $table[0].water :\n    $x >= $table[-1].outside ? $table[-1].water :\n    (\n        $below := $table[outside <= $x][-1];\n        $above := $table[outside > $x][0];\n        $below.water + ($above.water - $below.water) * ($x - $below.outside) / ($above.outside - $below.outside)\n    )\n)",
+                "tot": "jsonata"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 1910,
         "y": 320,
         "wires": [
             [
@@ -1835,7 +2023,7 @@
                 "t": "set",
                 "p": "feedforward.water_temp",
                 "pt": "msg",
-                "to": "$min([\n    $max([\n        feedforward.slope * feedforward.outside_temp_used + feedforward.intercept,\n        feedforward.min_water_temp\n    ]),\n    feedforward.max_water_temp\n])",
+                "to": "$min([\n    $max([feedforward.water_curve, feedforward.min_water_temp]),\n    feedforward.max_water_temp\n])",
                 "tot": "jsonata"
             }
         ],
@@ -1844,7 +2032,7 @@
         "from": "",
         "to": "",
         "reg": false,
-        "x": 1910,
+        "x": 2120,
         "y": 280,
         "wires": [
             [
@@ -2308,7 +2496,7 @@
             "afca3372175a2e94"
         ],
         "x": 825,
-        "y": 780,
+        "y": 900,
         "wires": []
     },
     {
@@ -2369,7 +2557,7 @@
         "links": [
             "28c22e67c87a258e"
         ],
-        "x": 2065,
+        "x": 2275,
         "y": 280,
         "wires": []
     },

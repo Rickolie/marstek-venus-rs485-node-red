@@ -34,22 +34,32 @@ views:
 
               **Mode:** {{ state_attr(ff, 'mode') }} · **Active curve:** {{ state_attr(ff, 'source') }}
 
+              {% if state_attr(ff, 'source') == 'History' %}
               water = {{ state_attr(ff, 'slope') }} × outside + {{ state_attr(ff, 'intercept') }}
+              {% else %}
+              water: lookup table (manual heating curve)
+              {% endif %}
 
               {% if state_attr(ff, 'expected_power') is not none %}
               Expected at {{ state_attr(ff, 'outside_temp_used') }} °C outside:
               {{ state_attr(ff, 'expected_power') }} W, COP {{ state_attr(ff, 'expected_cop') }}
               {% endif %}
           - type: heading
-            heading: Manual heating curve
+            heading: Manual heating curve (lookup table)
             heading_style: subtitle
             icon: mdi:pen
           - type: entities
             entities:
-              - entity: input_number.heat_pump_feedforward_manual_slope
-              - entity: input_number.heat_pump_feedforward_manual_intercept
-              - entity: script.heat_pump_feedforward_copy_history_to_manual
-                name: Copy history curve to manual
+              - entity: input_number.feedforward_home_min20
+                name: Water at -20 °C outside
+              - entity: input_number.feedforward_home_min10
+                name: Water at -10 °C outside
+              - entity: input_number.feedforward_home_0
+                name: Water at 0 °C outside
+              - entity: input_number.feedforward_home_plus10
+                name: Water at +10 °C outside
+              - entity: input_number.feedforward_home_plus20
+                name: Water at +20 °C outside
           - type: heading
             heading: Outside temperature
             heading_style: subtitle
@@ -97,10 +107,21 @@ views:
           - type: markdown
             content: |-
               {% set ff = 'sensor.heat_pump_feedforward_water_temperature' %}
+              {% set ns = namespace(x=none, o=none, w=none) %}
+              {% if state_attr(ff, 'source') == 'History' %}
               {% set slope = state_attr(ff, 'slope') | float(0) %}
-              {% set intercept = state_attr(ff, 'intercept') | float(0) %}
-              {% if slope < 0 %}
-              The active curve reaches 24 °C water at **{{ ((24 - intercept) / slope) | round(1) }} °C** outside.
+              {% if slope < 0 %}{% set ns.x = (24 - state_attr(ff, 'intercept') | float(0)) / slope %}{% endif %}
+              {% else %}
+              {% for o, k in [(-20, 'min20'), (-10, 'min10'), (0, '0'), (10, 'plus10'), (20, 'plus20')] %}
+              {% set w = states('input_number.feedforward_home_' ~ k) | float(0) %}
+              {% if ns.x is none and ns.w is not none and ns.w >= 24 and w < 24 %}
+              {% set ns.x = ns.o + (ns.w - 24) / (ns.w - w) * (o - ns.o) %}
+              {% endif %}
+              {% set ns.o = o %}{% set ns.w = w %}
+              {% endfor %}
+              {% endif %}
+              {% if ns.x is not none %}
+              The active curve reaches 24 °C water at **{{ ns.x | round(1) }} °C** outside.
               {% endif %}
           - type: history-graph
             title: Water temperature
