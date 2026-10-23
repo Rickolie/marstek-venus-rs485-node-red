@@ -415,94 +415,60 @@
         "z": "637c08aefe059a43"
     },
     {
-        "type": "change",
+        "id": "7cfc8e8e8d031efe",
+        "type": "function",
+        "z": "637c08aefe059a43",
+        "g": "dd498370e434231c",
         "name": "History wins over statistics",
-        "rules": [
-            {
-                "t": "set",
-                "p": "days",
-                "pt": "msg",
-                "to": "[\n    $each($merge([days_statistics, days_history]), function($day, $date) {\n        $merge([{\"date\": $date}, $day])\n    })\n]^(date)",
-                "tot": "jsonata"
-            },
-            {
-                "t": "delete",
-                "p": "days_history",
-                "pt": "msg"
-            },
-            {
-                "t": "delete",
-                "p": "days_statistics",
-                "pt": "msg"
-            }
-        ],
-        "action": "",
-        "property": "",
-        "from": "",
-        "to": "",
-        "reg": false,
+        "func": "// One row per day. A day from the exact state history replaces the same day from the statistics\nconst days = { ...msg.days_statistics, ...msg.days_history };\n\nmsg.days = Object.keys(days).sort().map(date => ({ date: date, ...days[date] }));\n\ndelete msg.days_history;\ndelete msg.days_statistics;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
         "x": 270,
         "y": 380,
         "wires": [
             [
                 "e5e703a0ba189d91"
             ]
-        ],
-        "id": "7cfc8e8e8d031efe",
-        "z": "637c08aefe059a43",
-        "g": "dd498370e434231c"
+        ]
     },
     {
-        "type": "change",
+        "id": "e5e703a0ba189d91",
+        "type": "function",
+        "z": "637c08aefe059a43",
+        "g": "dd498370e434231c",
         "name": "Used days only",
-        "rules": [
-            {
-                "t": "set",
-                "p": "days_skipped",
-                "pt": "msg",
-                "to": "$count(days[$not(energy >= $$.settings.min_day_energy and ran)])",
-                "tot": "jsonata"
-            },
-            {
-                "t": "set",
-                "p": "days",
-                "pt": "msg",
-                "to": "[days[energy >= $$.settings.min_day_energy and ran]]",
-                "tot": "jsonata"
-            }
-        ],
-        "action": "",
-        "property": "",
-        "from": "",
-        "to": "",
-        "reg": false,
+        "func": "// Only days on which the heat pump has been used: enough energy and running at some point\nconst s = msg.settings;\nconst used = (day) => day.energy >= s.min_day_energy && day.ran;\n\nmsg.days_skipped = msg.days.filter(day => !used(day)).length;\nmsg.days = msg.days.filter(used);\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
         "x": 490,
         "y": 380,
         "wires": [
             [
                 "e8e12c22f920d1bd"
             ]
-        ],
-        "id": "e5e703a0ba189d91",
-        "z": "637c08aefe059a43",
-        "g": "dd498370e434231c"
+        ]
     },
     {
-        "type": "switch",
+        "id": "e8e12c22f920d1bd",
+        "type": "function",
+        "z": "637c08aefe059a43",
+        "g": "dd498370e434231c",
         "name": "Any days?",
-        "property": "$count(days) > 0",
-        "propertyType": "jsonata",
-        "rules": [
-            {
-                "t": "true"
-            },
-            {
-                "t": "else"
-            }
-        ],
-        "checkall": "false",
-        "repair": false,
+        "func": "// Continue only when at least one day is left\nconst days = msg.days;\nreturn (days.length > 0) ? [msg, null] : [null, msg];",
         "outputs": 2,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
         "x": 660,
         "y": 380,
         "wires": [
@@ -513,9 +479,10 @@
                 "e3cb2b7f3ee0bcc2"
             ]
         ],
-        "id": "e8e12c22f920d1bd",
-        "z": "637c08aefe059a43",
-        "g": "dd498370e434231c"
+        "outputLabels": [
+            "days found",
+            "no days"
+        ]
     },
     {
         "type": "function",
@@ -609,88 +576,46 @@
         "g": "6564ed52f508b2ef"
     },
     {
-        "type": "change",
+        "id": "ff25fb99c60f3710",
+        "type": "function",
+        "z": "637c08aefe059a43",
+        "g": "6564ed52f508b2ef",
         "name": "Averages",
-        "rules": [
-            {
-                "t": "set",
-                "p": "averages.outside_temp_avg",
-                "pt": "msg",
-                "to": "$round($average(days.outside_temp_avg), 1)",
-                "tot": "jsonata"
-            },
-            {
-                "t": "set",
-                "p": "averages.water_target_temp_avg",
-                "pt": "msg",
-                "to": "$round($average(days.water_target_temp_avg), 1)",
-                "tot": "jsonata"
-            },
-            {
-                "t": "set",
-                "p": "averages.power_avg",
-                "pt": "msg",
-                "to": "$round($average(days.power_avg), 0)",
-                "tot": "jsonata"
-            },
-            {
-                "t": "set",
-                "p": "averages.energy",
-                "pt": "msg",
-                "to": "$round($average(days.energy), 2)",
-                "tot": "jsonata"
-            },
-            {
-                "t": "set",
-                "p": "averages.cop_avg",
-                "pt": "msg",
-                "to": "$round($average(days.cop_avg), 2)",
-                "tot": "jsonata"
-            }
-        ],
-        "action": "",
-        "property": "",
-        "from": "",
-        "to": "",
-        "reg": false,
+        "func": "// Average over all used days. Days without a value are left out\nconst round = (v, digits) => (v === undefined || !isFinite(v)) ? undefined : Number(v.toFixed(digits));\nconst average = (values) => values.length ? values.reduce((a, b) => a + b, 0) / values.length : undefined;\nconst avg = (key) => average(msg.days.map(day => day[key]).filter(v => v !== undefined));\n\nmsg.averages = {\n    outside_temp_avg: round(avg(\"outside_temp_avg\"), 1),\n    water_target_temp_avg: round(avg(\"water_target_temp_avg\"), 1),\n    power_avg: round(avg(\"power_avg\"), 0),\n    energy: round(avg(\"energy\"), 2),\n    cop_avg: round(avg(\"cop_avg\"), 2),\n};\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
         "x": 370,
         "y": 500,
         "wires": [
             [
                 "c6412c0e2916ac34"
             ]
-        ],
-        "id": "ff25fb99c60f3710",
-        "z": "637c08aefe059a43",
-        "g": "6564ed52f508b2ef"
+        ]
     },
     {
-        "type": "change",
+        "id": "c6412c0e2916ac34",
+        "type": "function",
+        "z": "637c08aefe059a43",
+        "g": "6564ed52f508b2ef",
         "name": "Curve per °C",
-        "rules": [
-            {
-                "t": "set",
-                "p": "curve",
-                "pt": "msg",
-                "to": "[\n    $each(days{$string($round(outside_temp_avg)): [$]}, function($days, $temp) {{\n        \"outside_temp\": $number($temp),\n        \"days\": $count($days),\n        \"water_target_temp\": $round($average($days.water_target_temp_avg), 1),\n        \"power\": $round($average($days.power_avg), 0),\n        \"energy\": $round($average($days.energy), 2),\n        \"cop\": $round($average($days.cop_avg), 2)\n    }})\n]^(outside_temp)",
-                "tot": "jsonata"
-            }
-        ],
-        "action": "",
-        "property": "",
-        "from": "",
-        "to": "",
-        "reg": false,
+        "func": "// Averages per whole °C outside temperature\nconst round = (v, digits) => (v === undefined || !isFinite(v)) ? undefined : Number(v.toFixed(digits));\nconst average = (values) => values.length ? values.reduce((a, b) => a + b, 0) / values.length : undefined;\nconst avg = (days, key) => average(days.map(day => day[key]).filter(v => v !== undefined));\n\nconst groups = {};\nmsg.days.forEach(day => (groups[Math.round(day.outside_temp_avg)] ??= []).push(day));\n\nmsg.curve = Object.keys(groups).map(Number).sort((a, b) => a - b).map(temp => ({\n    outside_temp: temp,\n    days: groups[temp].length,\n    water_target_temp: round(avg(groups[temp], \"water_target_temp_avg\"), 1),\n    power: round(avg(groups[temp], \"power_avg\"), 0),\n    energy: round(avg(groups[temp], \"energy\"), 2),\n    cop: round(avg(groups[temp], \"cop_avg\"), 2),\n}));\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
         "x": 530,
         "y": 500,
         "wires": [
             [
                 "0c6c3e8105d07291"
             ]
-        ],
-        "id": "c6412c0e2916ac34",
-        "z": "637c08aefe059a43",
-        "g": "6564ed52f508b2ef"
+        ]
     },
     {
         "type": "link in",
@@ -744,64 +669,25 @@
         "z": "637c08aefe059a43"
     },
     {
-        "type": "change",
+        "id": "ac75e090554b22a3",
+        "type": "function",
+        "z": "637c08aefe059a43",
+        "g": "dda90ecf8352d815",
         "name": "Summary",
-        "rules": [
-            {
-                "t": "set",
-                "p": "heat_pump_history",
-                "pt": "msg",
-                "to": "{\n    \"updated\": $now(),\n    \"first_day\": days[0].date,\n    \"last_day\": days[-1].date,\n    \"days_used\": $count(days),\n    \"days_from_history\": $count(days[source = \"history\"]),\n    \"days_from_statistics\": $count(days[source = \"statistics\"]),\n    \"days_skipped\": days_skipped,\n    \"averages\": averages,\n    \"fit\": fit,\n    \"curve\": curve\n}",
-                "tot": "jsonata"
-            },
-            {
-                "t": "set",
-                "p": "heat_pump_history",
-                "pt": "global",
-                "to": "$merge([heat_pump_history, {\"days\": days}])",
-                "tot": "jsonata"
-            },
-            {
-                "t": "delete",
-                "p": "days",
-                "pt": "msg"
-            },
-            {
-                "t": "delete",
-                "p": "days_skipped",
-                "pt": "msg"
-            },
-            {
-                "t": "delete",
-                "p": "averages",
-                "pt": "msg"
-            },
-            {
-                "t": "delete",
-                "p": "fit",
-                "pt": "msg"
-            },
-            {
-                "t": "delete",
-                "p": "curve",
-                "pt": "msg"
-            }
-        ],
-        "action": "",
-        "property": "",
-        "from": "",
-        "to": "",
-        "reg": false,
+        "func": "// Summary for Home Assistant. The full list of days stays in Node-RED\nconst days = msg.days;\n\nmsg.heat_pump_history = {\n    updated: new Date().toISOString(),\n    first_day: days[0].date,\n    last_day: days[days.length - 1].date,\n    days_used: days.length,\n    days_from_history: days.filter(day => day.source === \"history\").length,\n    days_from_statistics: days.filter(day => day.source === \"statistics\").length,\n    days_skipped: msg.days_skipped,\n    averages: msg.averages,\n    fit: msg.fit,\n    curve: msg.curve,\n};\nglobal.set(\"heat_pump_history\", { ...msg.heat_pump_history, days: days });\n\ndelete msg.days;\ndelete msg.days_skipped;\ndelete msg.averages;\ndelete msg.fit;\ndelete msg.curve;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
         "x": 210,
         "y": 620,
         "wires": [
             [
                 "3411628b3fc3b2d9"
             ]
-        ],
-        "id": "ac75e090554b22a3",
-        "z": "637c08aefe059a43",
-        "g": "dda90ecf8352d815"
+        ]
     },
     {
         "type": "function",

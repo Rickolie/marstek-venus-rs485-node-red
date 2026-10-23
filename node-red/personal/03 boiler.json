@@ -818,21 +818,18 @@
         "g": "bc08c06443f5caf0"
     },
     {
-        "type": "switch",
+        "id": "b5427b2650e04a8b",
+        "type": "function",
+        "z": "314bf14cc3edfa41",
+        "g": "bc08c06443f5caf0",
         "name": "Enough sun?",
-        "property": "boiler.solar_next_hour > boiler.solar_threshold and boiler.holiday != \"on\"",
-        "propertyType": "jsonata",
-        "rules": [
-            {
-                "t": "true"
-            },
-            {
-                "t": "else"
-            }
-        ],
-        "checkall": "false",
-        "repair": false,
+        "func": "// Heat with the element when the expected solar power next hour is high enough, not on holiday\nconst b = msg.boiler;\nreturn (b.solar_next_hour > b.solar_threshold && b.holiday !== \"on\") ? [msg, null] : [null, msg];",
         "outputs": 2,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
         "x": 1400,
         "y": 160,
         "wires": [
@@ -843,9 +840,10 @@
                 "d3c9844bf4d516c4"
             ]
         ],
-        "id": "b5427b2650e04a8b",
-        "z": "314bf14cc3edfa41",
-        "g": "bc08c06443f5caf0"
+        "outputLabels": [
+            "enough sun",
+            "no sun or on holiday"
+        ]
     },
     {
         "type": "change",
@@ -918,21 +916,18 @@
         "g": "bc08c06443f5caf0"
     },
     {
-        "type": "switch",
+        "id": "8253488905fa6d12",
+        "type": "function",
+        "z": "314bf14cc3edfa41",
+        "g": "bc08c06443f5caf0",
         "name": "Warm enough?",
-        "property": "boiler.temp >= boiler.max_temp or\n(boiler.element_state != \"on\" and boiler.temp >= boiler.max_temp - boiler.restart_hysteresis)",
-        "propertyType": "jsonata",
-        "rules": [
-            {
-                "t": "true"
-            },
-            {
-                "t": "else"
-            }
-        ],
-        "checkall": "false",
-        "repair": false,
+        "func": "// Off at max_temp. Once off, the element only restarts below max_temp - restart_hysteresis\nconst b = msg.boiler;\nreturn (b.temp >= b.max_temp ||\n    (b.element_state !== \"on\" && b.temp >= b.max_temp - b.restart_hysteresis)) ? [msg, null] : [null, msg];",
         "outputs": 2,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
         "x": 1790,
         "y": 140,
         "wires": [
@@ -943,9 +938,10 @@
                 "b35630e2e1d09388"
             ]
         ],
-        "id": "8253488905fa6d12",
-        "z": "314bf14cc3edfa41",
-        "g": "bc08c06443f5caf0"
+        "outputLabels": [
+            "warm enough",
+            "heat"
+        ]
     },
     {
         "type": "change",
@@ -1428,52 +1424,46 @@
         "z": "314bf14cc3edfa41"
     },
     {
-        "type": "switch",
+        "id": "24f850ccfe7ad9cc",
+        "type": "function",
+        "z": "314bf14cc3edfa41",
+        "g": "0fb11fd798c6fb94",
         "name": "Element off?",
-        "property": "boiler.element = \"off\" and boiler.element_state = \"on\"",
-        "propertyType": "jsonata",
-        "rules": [
-            {
-                "t": "true"
-            }
-        ],
-        "checkall": "false",
-        "repair": false,
+        "func": "// Switch the element off when it is on and should be off\nconst b = msg.boiler;\nreturn (b.element === \"off\" && b.element_state === \"on\") ? msg : null;",
         "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
         "x": 1070,
         "y": 580,
         "wires": [
             [
                 "426e6035534cce22"
             ]
-        ],
-        "id": "24f850ccfe7ad9cc",
-        "z": "314bf14cc3edfa41",
-        "g": "0fb11fd798c6fb94"
+        ]
     },
     {
-        "type": "switch",
+        "id": "4249ab532a39fecd",
+        "type": "function",
+        "z": "314bf14cc3edfa41",
+        "g": "0fb11fd798c6fb94",
         "name": "Doorstroomboiler off?",
-        "property": "boiler.instant = \"off\" and boiler.instant_state = \"on\"",
-        "propertyType": "jsonata",
-        "rules": [
-            {
-                "t": "true"
-            }
-        ],
-        "checkall": "false",
-        "repair": false,
+        "func": "// Switch the doorstroomboiler off when it is on and should be off\nconst b = msg.boiler;\nreturn (b.instant === \"off\" && b.instant_state === \"on\") ? msg : null;",
         "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
         "x": 1090,
         "y": 620,
         "wires": [
             [
                 "67e9c33f4a0bef4f"
             ]
-        ],
-        "id": "4249ab532a39fecd",
-        "z": "314bf14cc3edfa41",
-        "g": "0fb11fd798c6fb94"
+        ]
     },
     {
         "type": "delay",
@@ -1503,76 +1493,67 @@
         "g": "0fb11fd798c6fb94"
     },
     {
-        "type": "switch",
+        "id": "28c36de7fbc7e2a1",
+        "type": "function",
+        "z": "314bf14cc3edfa41",
+        "g": "0fb11fd798c6fb94",
         "name": "Element on?",
-        "property": "boiler.element = \"on\" and boiler.element_state = \"off\"",
-        "propertyType": "jsonata",
-        "rules": [
-            {
-                "t": "true"
-            }
-        ],
-        "checkall": "false",
-        "repair": false,
+        "func": "// Switch the element on when it is off and should be on\nconst b = msg.boiler;\nreturn (b.element === \"on\" && b.element_state === \"off\") ? msg : null;",
         "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
         "x": 1220,
         "y": 660,
         "wires": [
             [
                 "9350a7ea16017efa"
             ]
-        ],
-        "id": "28c36de7fbc7e2a1",
-        "z": "314bf14cc3edfa41",
-        "g": "0fb11fd798c6fb94"
+        ]
     },
     {
-        "type": "switch",
+        "id": "3a71dc42bf5b1406",
+        "type": "function",
+        "z": "314bf14cc3edfa41",
+        "g": "0fb11fd798c6fb94",
         "name": "Doorstroomboiler on?",
-        "property": "boiler.instant = \"on\" and boiler.instant_state = \"off\"",
-        "propertyType": "jsonata",
-        "rules": [
-            {
-                "t": "true"
-            }
-        ],
-        "checkall": "false",
-        "repair": false,
+        "func": "// Switch the doorstroomboiler on when it is off and should be on\nconst b = msg.boiler;\nreturn (b.instant === \"on\" && b.instant_state === \"off\") ? msg : null;",
         "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
         "x": 1240,
         "y": 700,
         "wires": [
             [
                 "a03dcf4df6171d7a"
             ]
-        ],
-        "id": "3a71dc42bf5b1406",
-        "z": "314bf14cc3edfa41",
-        "g": "0fb11fd798c6fb94"
+        ]
     },
     {
-        "type": "switch",
+        "id": "b892c048317d0cb2",
+        "type": "function",
+        "z": "314bf14cc3edfa41",
+        "g": "0fb11fd798c6fb94",
         "name": "Valve change?",
-        "property": "boiler.valve.attributes.temperature != boiler.valve_setpoint",
-        "propertyType": "jsonata",
-        "rules": [
-            {
-                "t": "true"
-            }
-        ],
-        "checkall": "false",
-        "repair": false,
+        "func": "// Only send a new set point when it differs from the current one\nconst b = msg.boiler;\nreturn (b.valve.attributes.temperature !== b.valve_setpoint) ? msg : null;",
         "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
         "x": 1070,
         "y": 740,
         "wires": [
             [
                 "58836170b542309d"
             ]
-        ],
-        "id": "b892c048317d0cb2",
-        "z": "314bf14cc3edfa41",
-        "g": "0fb11fd798c6fb94"
+        ]
     },
     {
         "type": "api-call-service",
@@ -1856,56 +1837,46 @@
         "g": "72965380bcf7a2db"
     },
     {
-        "type": "switch",
+        "id": "b4763c8e7086fe56",
+        "type": "function",
+        "z": "314bf14cc3edfa41",
+        "g": "72965380bcf7a2db",
         "name": "Boiler temperature unavailable?",
-        "property": "boiler.temp_state in [\"unknown\", \"unavailable\"]",
-        "propertyType": "jsonata",
-        "rules": [
-            {
-                "t": "true"
-            }
-        ],
-        "checkall": "false",
-        "repair": false,
+        "func": "// Alert\nconst b = msg.boiler;\nreturn ([\"unknown\", \"unavailable\"].includes(b.temp_state)) ? msg : null;",
         "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
         "x": 300,
         "y": 620,
         "wires": [
             [
                 "1a7e6ef1fc4785a6"
             ]
-        ],
-        "id": "b4763c8e7086fe56",
-        "z": "314bf14cc3edfa41",
-        "g": "72965380bcf7a2db"
+        ]
     },
     {
-        "type": "change",
+        "id": "1a7e6ef1fc4785a6",
+        "type": "function",
+        "z": "314bf14cc3edfa41",
+        "g": "72965380bcf7a2db",
         "name": "Message: boiler temp unavailable",
-        "rules": [
-            {
-                "t": "set",
-                "p": "payload",
-                "pt": "msg",
-                "to": "{\n    \"chatId\": boiler.telegram_chat_id,\n    \"type\": \"message\",\n    \"content\": \"Boiler temp unavailable. Please check for working boiler!\"\n}",
-                "tot": "jsonata"
-            }
-        ],
-        "action": "",
-        "property": "",
-        "from": "",
-        "to": "",
-        "reg": false,
+        "func": "// Telegram message\nmsg.payload = {\n    chatId: msg.boiler.telegram_chat_id,\n    type: \"message\",\n    content: \"Boiler temp unavailable. Please check for working boiler!\",\n};\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
         "x": 560,
         "y": 620,
         "wires": [
             [
                 "cf755d285f72d3de"
             ]
-        ],
-        "id": "1a7e6ef1fc4785a6",
-        "z": "314bf14cc3edfa41",
-        "g": "72965380bcf7a2db"
+        ]
     },
     {
         "type": "delay",
@@ -1934,56 +1905,46 @@
         "g": "72965380bcf7a2db"
     },
     {
-        "type": "switch",
+        "id": "406cc34381bda1fc",
+        "type": "function",
+        "z": "314bf14cc3edfa41",
+        "g": "72965380bcf7a2db",
         "name": "CV temperature unavailable?",
-        "property": "boiler.cv_state in [\"unknown\", \"unavailable\"]",
-        "propertyType": "jsonata",
-        "rules": [
-            {
-                "t": "true"
-            }
-        ],
-        "checkall": "false",
-        "repair": false,
+        "func": "// Alert\nconst b = msg.boiler;\nreturn ([\"unknown\", \"unavailable\"].includes(b.cv_state)) ? msg : null;",
         "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
         "x": 300,
         "y": 660,
         "wires": [
             [
                 "e9a5db6cdfca2c06"
             ]
-        ],
-        "id": "406cc34381bda1fc",
-        "z": "314bf14cc3edfa41",
-        "g": "72965380bcf7a2db"
+        ]
     },
     {
-        "type": "change",
+        "id": "e9a5db6cdfca2c06",
+        "type": "function",
+        "z": "314bf14cc3edfa41",
+        "g": "72965380bcf7a2db",
         "name": "Message: cv water temp unavailable",
-        "rules": [
-            {
-                "t": "set",
-                "p": "payload",
-                "pt": "msg",
-                "to": "{\n    \"chatId\": boiler.telegram_chat_id,\n    \"type\": \"message\",\n    \"content\": \"CV water temp unavailable. Please check for working boiler!\"\n}",
-                "tot": "jsonata"
-            }
-        ],
-        "action": "",
-        "property": "",
-        "from": "",
-        "to": "",
-        "reg": false,
+        "func": "// Telegram message\nmsg.payload = {\n    chatId: msg.boiler.telegram_chat_id,\n    type: \"message\",\n    content: \"CV water temp unavailable. Please check for working boiler!\",\n};\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
         "x": 560,
         "y": 660,
         "wires": [
             [
                 "e3e2bcaa8e5aa2b0"
             ]
-        ],
-        "id": "e9a5db6cdfca2c06",
-        "z": "314bf14cc3edfa41",
-        "g": "72965380bcf7a2db"
+        ]
     },
     {
         "type": "delay",
@@ -2012,56 +1973,46 @@
         "g": "72965380bcf7a2db"
     },
     {
-        "type": "switch",
+        "id": "19e8f4993c9895a4",
+        "type": "function",
+        "z": "314bf14cc3edfa41",
+        "g": "72965380bcf7a2db",
         "name": "Valve unavailable?",
-        "property": "boiler.valve.state in [\"unavailable\", \"heat/cool\"]",
-        "propertyType": "jsonata",
-        "rules": [
-            {
-                "t": "true"
-            }
-        ],
-        "checkall": "false",
-        "repair": false,
+        "func": "// Alert, heat/cool means the valve thermostat lost its own control\nconst b = msg.boiler;\nreturn ([\"unavailable\", \"heat/cool\"].includes(b.valve.state)) ? msg : null;",
         "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
         "x": 300,
         "y": 700,
         "wires": [
             [
                 "3a060b148460c4a4"
             ]
-        ],
-        "id": "19e8f4993c9895a4",
-        "z": "314bf14cc3edfa41",
-        "g": "72965380bcf7a2db"
+        ]
     },
     {
-        "type": "change",
+        "id": "3a060b148460c4a4",
+        "type": "function",
+        "z": "314bf14cc3edfa41",
+        "g": "72965380bcf7a2db",
         "name": "Message: valve heatexchanger unavailable",
-        "rules": [
-            {
-                "t": "set",
-                "p": "payload",
-                "pt": "msg",
-                "to": "{\n    \"chatId\": boiler.telegram_chat_id,\n    \"type\": \"message\",\n    \"content\": \"Valve heatExchanger unavailable. Please check for working boiler!\"\n}",
-                "tot": "jsonata"
-            }
-        ],
-        "action": "",
-        "property": "",
-        "from": "",
-        "to": "",
-        "reg": false,
+        "func": "// Telegram message\nmsg.payload = {\n    chatId: msg.boiler.telegram_chat_id,\n    type: \"message\",\n    content: \"Valve heatExchanger unavailable. Please check for working boiler!\",\n};\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
         "x": 560,
         "y": 700,
         "wires": [
             [
                 "869075b5b11869a7"
             ]
-        ],
-        "id": "3a060b148460c4a4",
-        "z": "314bf14cc3edfa41",
-        "g": "72965380bcf7a2db"
+        ]
     },
     {
         "type": "delay",
@@ -2090,56 +2041,46 @@
         "g": "72965380bcf7a2db"
     },
     {
-        "type": "switch",
+        "id": "397bc767f320fdf1",
+        "type": "function",
+        "z": "314bf14cc3edfa41",
+        "g": "72965380bcf7a2db",
         "name": "Element unavailable?",
-        "property": "boiler.element_state = \"unavailable\"",
-        "propertyType": "jsonata",
-        "rules": [
-            {
-                "t": "true"
-            }
-        ],
-        "checkall": "false",
-        "repair": false,
+        "func": "// Alert\nconst b = msg.boiler;\nreturn (b.element_state === \"unavailable\") ? msg : null;",
         "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
         "x": 300,
         "y": 740,
         "wires": [
             [
                 "7cf84b17c4cfab2e"
             ]
-        ],
-        "id": "397bc767f320fdf1",
-        "z": "314bf14cc3edfa41",
-        "g": "72965380bcf7a2db"
+        ]
     },
     {
-        "type": "change",
+        "id": "7cf84b17c4cfab2e",
+        "type": "function",
+        "z": "314bf14cc3edfa41",
+        "g": "72965380bcf7a2db",
         "name": "Message: boiler unavailable",
-        "rules": [
-            {
-                "t": "set",
-                "p": "payload",
-                "pt": "msg",
-                "to": "{\n    \"chatId\": boiler.telegram_chat_id,\n    \"type\": \"message\",\n    \"content\": \"Boiler unavailable. Please check for working boiler!\"\n}",
-                "tot": "jsonata"
-            }
-        ],
-        "action": "",
-        "property": "",
-        "from": "",
-        "to": "",
-        "reg": false,
+        "func": "// Telegram message\nmsg.payload = {\n    chatId: msg.boiler.telegram_chat_id,\n    type: \"message\",\n    content: \"Boiler unavailable. Please check for working boiler!\",\n};\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
         "x": 560,
         "y": 740,
         "wires": [
             [
                 "41c5de351c2f4ed3"
             ]
-        ],
-        "id": "7cf84b17c4cfab2e",
-        "z": "314bf14cc3edfa41",
-        "g": "72965380bcf7a2db"
+        ]
     },
     {
         "type": "delay",
@@ -2168,56 +2109,46 @@
         "g": "72965380bcf7a2db"
     },
     {
-        "type": "switch",
+        "id": "30cf7b4ab3addd84",
+        "type": "function",
+        "z": "314bf14cc3edfa41",
+        "g": "72965380bcf7a2db",
         "name": "Doorstroomboiler unavailable?",
-        "property": "boiler.use_instant = \"on\" and boiler.instant_state = \"unavailable\"",
-        "propertyType": "jsonata",
-        "rules": [
-            {
-                "t": "true"
-            }
-        ],
-        "checkall": "false",
-        "repair": false,
+        "func": "// Alert, only when the doorstroomboiler is used\nconst b = msg.boiler;\nreturn (b.use_instant === \"on\" && b.instant_state === \"unavailable\") ? msg : null;",
         "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
         "x": 300,
         "y": 780,
         "wires": [
             [
                 "d5b3687d12616acc"
             ]
-        ],
-        "id": "30cf7b4ab3addd84",
-        "z": "314bf14cc3edfa41",
-        "g": "72965380bcf7a2db"
+        ]
     },
     {
-        "type": "change",
+        "id": "d5b3687d12616acc",
+        "type": "function",
+        "z": "314bf14cc3edfa41",
+        "g": "72965380bcf7a2db",
         "name": "Message: instant boiler unavailable",
-        "rules": [
-            {
-                "t": "set",
-                "p": "payload",
-                "pt": "msg",
-                "to": "{\n    \"chatId\": boiler.telegram_chat_id,\n    \"type\": \"message\",\n    \"content\": \"Instant boiler unavailable. Please check for working boiler!\"\n}",
-                "tot": "jsonata"
-            }
-        ],
-        "action": "",
-        "property": "",
-        "from": "",
-        "to": "",
-        "reg": false,
+        "func": "// Telegram message\nmsg.payload = {\n    chatId: msg.boiler.telegram_chat_id,\n    type: \"message\",\n    content: \"Instant boiler unavailable. Please check for working boiler!\",\n};\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
         "x": 560,
         "y": 780,
         "wires": [
             [
                 "eb9e4aed8b98f950"
             ]
-        ],
-        "id": "d5b3687d12616acc",
-        "z": "314bf14cc3edfa41",
-        "g": "72965380bcf7a2db"
+        ]
     },
     {
         "type": "delay",

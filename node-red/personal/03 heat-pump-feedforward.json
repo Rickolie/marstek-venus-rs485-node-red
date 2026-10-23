@@ -1380,24 +1380,17 @@
     },
     {
         "id": "b3a6acf61628421e",
-        "type": "change",
+        "type": "function",
         "z": "b1add4e3c1434652",
         "g": "332bfaf514371b07",
         "name": "Cache forecast",
-        "rules": [
-            {
-                "t": "set",
-                "p": "weather_forecast",
-                "pt": "flow",
-                "to": "{\n    \"fetched\": $millis(),\n    \"list\": [payload.*.forecast.{\"t\": $toMillis(datetime), \"temp\": temperature}]\n}",
-                "tot": "jsonata"
-            }
-        ],
-        "action": "",
-        "property": "",
-        "from": "",
-        "to": "",
-        "reg": false,
+        "func": "// Cache the hourly forecast as [{ t: ms, temp: °C }], read by 'Get forecast'\nconst response = msg.payload || {};\nconst forecast = Object.values(response)[0]?.forecast || [];\n\nflow.set(\"weather_forecast\", {\n    fetched: Date.now(),\n    list: forecast.map(f => ({ t: new Date(f.datetime).getTime(), temp: f.temperature })),\n});\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
         "x": 380,
         "y": 340,
         "wires": [
@@ -1558,23 +1551,17 @@
     },
     {
         "id": "2e04dcbfd247dfa4",
-        "type": "switch",
+        "type": "function",
         "z": "b1add4e3c1434652",
         "g": "e38fe8941b1a5c5c",
         "name": "Forecast recent?",
-        "property": "$exists(forecast.fetched) and $count(forecast.list) > 0 and\n$millis() - forecast.fetched < 3 * 3600000",
-        "propertyType": "jsonata",
-        "rules": [
-            {
-                "t": "true"
-            },
-            {
-                "t": "else"
-            }
-        ],
-        "checkall": "false",
-        "repair": false,
+        "func": "// Only use a forecast with data, fetched in the last 3 hours\nconst forecast = msg.forecast;\nreturn (forecast && forecast.list && forecast.list.length > 0 &&\n    Date.now() - forecast.fetched < 3 * 3_600_000) ? [msg, null] : [null, msg];",
         "outputs": 2,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
         "x": 1440,
         "y": 100,
         "wires": [
@@ -1584,6 +1571,10 @@
             [
                 "0b2e227d906c7bb8"
             ]
+        ],
+        "outputLabels": [
+            "recent",
+            "missing or older than 3 h"
         ]
     },
     {
@@ -1641,24 +1632,17 @@
     },
     {
         "id": "c34fa58dea289716",
-        "type": "change",
+        "type": "function",
         "z": "b1add4e3c1434652",
         "g": "e38fe8941b1a5c5c",
         "name": "Measure bias",
-        "rules": [
-            {
-                "t": "set",
-                "p": "feedforward.forecast_bias",
-                "pt": "msg",
-                "to": "feedforward.outside_temp - feedforward.forecast_now",
-                "tot": "jsonata"
-            }
-        ],
-        "action": "",
-        "property": "",
-        "from": "",
-        "to": "",
-        "reg": false,
+        "func": "// Difference between the measured and the forecast temperature right now\nconst ff = msg.feedforward;\nff.forecast_bias = ff.outside_temp - ff.forecast_now;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
         "x": 1970,
         "y": 60,
         "wires": [
@@ -1697,43 +1681,17 @@
     },
     {
         "id": "59802966c9b8c38f",
-        "type": "change",
+        "type": "function",
         "z": "b1add4e3c1434652",
         "g": "e38fe8941b1a5c5c",
         "name": "Use forecast",
-        "rules": [
-            {
-                "t": "set",
-                "p": "feedforward.forecast_temp",
-                "pt": "msg",
-                "to": "feedforward.forecast_temp + feedforward.forecast_bias",
-                "tot": "jsonata"
-            },
-            {
-                "t": "set",
-                "p": "feedforward.outside_temp_used",
-                "pt": "msg",
-                "to": "feedforward.outside_temp + feedforward.forecast_weight / 100 * (feedforward.forecast_temp - feedforward.outside_temp)",
-                "tot": "jsonata"
-            },
-            {
-                "t": "set",
-                "p": "feedforward.outside_temp_avg_used",
-                "pt": "msg",
-                "to": "$round(feedforward.forecast_avg + feedforward.forecast_bias, 1)",
-                "tot": "jsonata"
-            },
-            {
-                "t": "delete",
-                "p": "forecast",
-                "pt": "msg"
-            }
-        ],
-        "action": "",
-        "property": "",
-        "from": "",
-        "to": "",
-        "reg": false,
+        "func": "const ff = msg.feedforward;\n\n// Forecast, shifted by the bias (0 without bias correction)\nff.forecast_temp = ff.forecast_temp + ff.forecast_bias;\n\n// Heating curve: mix of the current and the forecast temperature, weight in %\nff.outside_temp_used = ff.outside_temp + ff.forecast_weight / 100 * (ff.forecast_temp - ff.outside_temp);\n\n// Simple day schedule: average forecast over the next hours\nff.outside_temp_avg_used = Math.round((ff.forecast_avg + ff.forecast_bias) * 10) / 10;\n\ndelete msg.forecast;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
         "x": 2140,
         "y": 80,
         "wires": [
@@ -1844,23 +1802,17 @@
     },
     {
         "id": "9bc931d4bd2823c3",
-        "type": "switch",
+        "type": "function",
         "z": "b1add4e3c1434652",
         "g": "484d4b3a7a26d554",
         "name": "History curve available?",
-        "property": "$exists($globalContext(\"heat_pump_history\").fit.water_target_temp.slope)",
-        "propertyType": "jsonata",
-        "rules": [
-            {
-                "t": "true"
-            },
-            {
-                "t": "else"
-            }
-        ],
-        "checkall": "false",
-        "repair": false,
+        "func": "// The history curve exists once the Heat Pump History flow has run\nconst fit = global.get(\"heat_pump_history\")?.fit?.water_target_temp;\nreturn (fit && fit.slope !== undefined) ? [msg, null] : [null, msg];",
         "outputs": 2,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
         "x": 1290,
         "y": 280,
         "wires": [
@@ -1870,42 +1822,25 @@
             [
                 "780c18a2172e7612"
             ]
+        ],
+        "outputLabels": [
+            "available",
+            "not calculated yet"
         ]
     },
     {
         "id": "5e48ee60f03d5124",
-        "type": "change",
+        "type": "function",
         "z": "b1add4e3c1434652",
         "g": "484d4b3a7a26d554",
         "name": "Use history curve",
-        "rules": [
-            {
-                "t": "set",
-                "p": "feedforward.slope",
-                "pt": "msg",
-                "to": "$globalContext(\"heat_pump_history\").fit.water_target_temp.slope",
-                "tot": "jsonata"
-            },
-            {
-                "t": "set",
-                "p": "feedforward.intercept",
-                "pt": "msg",
-                "to": "$globalContext(\"heat_pump_history\").fit.water_target_temp.intercept",
-                "tot": "jsonata"
-            },
-            {
-                "t": "set",
-                "p": "feedforward.water_curve",
-                "pt": "msg",
-                "to": "feedforward.slope * feedforward.outside_temp_used + feedforward.intercept",
-                "tot": "jsonata"
-            }
-        ],
-        "action": "",
-        "property": "",
-        "from": "",
-        "to": "",
-        "reg": false,
+        "func": "// Straight line from the Heat Pump History flow: water = slope * outside + intercept\nconst ff = msg.feedforward;\nconst fit = global.get(\"heat_pump_history\").fit.water_target_temp;\n\nff.slope = fit.slope;\nff.intercept = fit.intercept;\nff.water_curve = ff.slope * ff.outside_temp_used + ff.intercept;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
         "x": 1510,
         "y": 260,
         "wires": [
@@ -1944,24 +1879,17 @@
     },
     {
         "id": "f20a4c4f53d0851c",
-        "type": "change",
+        "type": "function",
         "z": "b1add4e3c1434652",
         "g": "484d4b3a7a26d554",
         "name": "Manual lookup table",
-        "rules": [
-            {
-                "t": "set",
-                "p": "feedforward.table",
-                "pt": "msg",
-                "to": "[\n    {\"outside\": -20, \"water\": feedforward.table_min20},\n    {\"outside\": -10, \"water\": feedforward.table_min10},\n    {\"outside\": 0, \"water\": feedforward.table_0},\n    {\"outside\": 10, \"water\": feedforward.table_plus10},\n    {\"outside\": 20, \"water\": feedforward.table_plus20}\n]",
-                "tot": "jsonata"
-            }
-        ],
-        "action": "",
-        "property": "",
-        "from": "",
-        "to": "",
-        "reg": false,
+        "func": "// Water temperature per outside temperature, from input_number.feedforward_home_*\nconst ff = msg.feedforward;\n\nff.table = [\n    { outside: -20, water: ff.table_min20 },\n    { outside: -10, water: ff.table_min10 },\n    { outside: 0, water: ff.table_0 },\n    { outside: 10, water: ff.table_plus10 },\n    { outside: 20, water: ff.table_plus20 },\n];\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
         "x": 1700,
         "y": 320,
         "wires": [
@@ -1972,24 +1900,17 @@
     },
     {
         "id": "a9c85c902838a4b1",
-        "type": "change",
+        "type": "function",
         "z": "b1add4e3c1434652",
         "g": "484d4b3a7a26d554",
         "name": "Interpolate lookup table",
-        "rules": [
-            {
-                "t": "set",
-                "p": "feedforward.water_curve",
-                "pt": "msg",
-                "to": "(\n    $table := feedforward.table^(outside);\n    $x := feedforward.outside_temp_used;\n    $x <= $table[0].outside ? $table[0].water :\n    $x >= $table[-1].outside ? $table[-1].water :\n    (\n        $below := $table[outside <= $x][-1];\n        $above := $table[outside > $x][0];\n        $below.water + ($above.water - $below.water) * ($x - $below.outside) / ($above.outside - $below.outside)\n    )\n)",
-                "tot": "jsonata"
-            }
-        ],
-        "action": "",
-        "property": "",
-        "from": "",
-        "to": "",
-        "reg": false,
+        "func": "// Linear between the two surrounding points, the end value beyond the table\nconst ff = msg.feedforward;\nconst table = ff.table; // sorted from cold to warm\nconst x = ff.outside_temp_used;\nconst first = table[0];\nconst last = table[table.length - 1];\n\nif (x <= first.outside) {\n    ff.water_curve = first.water;\n} else if (x >= last.outside) {\n    ff.water_curve = last.water;\n} else {\n    const i = table.findIndex(p => p.outside > x); // first point above x\n    const below = table[i - 1];\n    const above = table[i];\n    ff.water_curve = below.water + (above.water - below.water) * (x - below.outside) / (above.outside - below.outside);\n}\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
         "x": 1910,
         "y": 320,
         "wires": [
@@ -2000,38 +1921,17 @@
     },
     {
         "id": "ca22e09f891966e8",
-        "type": "change",
+        "type": "function",
         "z": "b1add4e3c1434652",
         "g": "484d4b3a7a26d554",
         "name": "Curve water temperature",
-        "rules": [
-            {
-                "t": "set",
-                "p": "feedforward.mode",
-                "pt": "msg",
-                "to": "Curve",
-                "tot": "str"
-            },
-            {
-                "t": "set",
-                "p": "feedforward.heating",
-                "pt": "msg",
-                "to": "true",
-                "tot": "bool"
-            },
-            {
-                "t": "set",
-                "p": "feedforward.water_temp",
-                "pt": "msg",
-                "to": "$min([\n    $max([feedforward.water_curve, feedforward.min_water_temp]),\n    feedforward.max_water_temp\n])",
-                "tot": "jsonata"
-            }
-        ],
-        "action": "",
-        "property": "",
-        "from": "",
-        "to": "",
-        "reg": false,
+        "func": "const ff = msg.feedforward;\nff.mode = \"Curve\";\nff.heating = true;\n\n// Heating curve, limited to the min / max water temperature\nff.water_temp = Math.min(Math.max(ff.water_curve, ff.min_water_temp), ff.max_water_temp);\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
         "x": 2120,
         "y": 280,
         "wires": [
@@ -2257,66 +2157,17 @@
     },
     {
         "id": "e473924f4aa6cf0a",
-        "type": "change",
+        "type": "function",
         "z": "b1add4e3c1434652",
         "g": "e41d71a6d8a7f5b3",
         "name": "Round and expected values",
-        "rules": [
-            {
-                "t": "set",
-                "p": "feedforward.water_temp",
-                "pt": "msg",
-                "to": "$round(feedforward.water_temp, 1)",
-                "tot": "jsonata"
-            },
-            {
-                "t": "set",
-                "p": "feedforward.outside_temp_used",
-                "pt": "msg",
-                "to": "$round(feedforward.outside_temp_used, 1)",
-                "tot": "jsonata"
-            },
-            {
-                "t": "set",
-                "p": "feedforward.forecast_temp",
-                "pt": "msg",
-                "to": "$round(feedforward.forecast_temp, 1)",
-                "tot": "jsonata"
-            },
-            {
-                "t": "set",
-                "p": "feedforward.forecast_bias",
-                "pt": "msg",
-                "to": "$round(feedforward.forecast_bias, 1)",
-                "tot": "jsonata"
-            },
-            {
-                "t": "set",
-                "p": "feedforward.expected_power",
-                "pt": "msg",
-                "to": "(\n    $fit := $globalContext(\"heat_pump_history\").fit.power;\n    $round($fit.slope * feedforward.outside_temp_used + $fit.intercept, 0)\n)",
-                "tot": "jsonata"
-            },
-            {
-                "t": "set",
-                "p": "feedforward.expected_cop",
-                "pt": "msg",
-                "to": "(\n    $fit := $globalContext(\"heat_pump_history\").fit.cop;\n    $round($fit.slope * feedforward.outside_temp_used + $fit.intercept, 2)\n)",
-                "tot": "jsonata"
-            },
-            {
-                "t": "set",
-                "p": "heat_pump_feedforward",
-                "pt": "global",
-                "to": "feedforward",
-                "tot": "msg"
-            }
-        ],
-        "action": "",
-        "property": "",
-        "from": "",
-        "to": "",
-        "reg": false,
+        "func": "const ff = msg.feedforward;\nconst round = (v, digits) => (v === undefined || !isFinite(v)) ? undefined : Number(v.toFixed(digits));\n\nff.water_temp = round(ff.water_temp, 1);\nff.outside_temp_used = round(ff.outside_temp_used, 1);\nff.forecast_temp = round(ff.forecast_temp, 1);\nff.forecast_bias = round(ff.forecast_bias, 1);\n\n// Expected power and COP at this outside temperature, from the Heat Pump History flow\nconst fit = global.get(\"heat_pump_history\")?.fit || {};\nconst atOutside = (line) => line ? line.slope * ff.outside_temp_used + line.intercept : undefined;\nff.expected_power = round(atOutside(fit.power), 0);\nff.expected_cop = round(atOutside(fit.cop), 2);\n\nglobal.set(\"heat_pump_feedforward\", { ...ff });\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
         "x": 1140,
         "y": 620,
         "wires": [
