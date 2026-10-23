@@ -167,5 +167,5 @@ views:
               | Outside °C | Days | Water °C | Power W | kWh/day | COP |
               |---:|---:|---:|---:|---:|---:|
               {% for r in state_attr('sensor.heat_pump_history', 'curve') or [] -%}
-              | {{ r.outside_temp }} | {{ r.days }} | {{ r.water_target_temp if r.water_target_temp is not none else '-' }} | {{ r.power }} | {{ r.energy }} | {{ r.cop if r.cop is not none else '-' }} |
+              | {{ r.outside_temp }} | {{ r.days }} | {{ r.water_target_temp if r.water_target_temp is number else '-' }} | {{ r.power }} | {{ r.energy }} | {{ r.cop if r.cop is number else '-' }} |
               {% endfor %}

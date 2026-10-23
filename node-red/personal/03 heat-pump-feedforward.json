@@ -1,6 +1,6 @@
 [
     {
-        "id": "30c1cadb3f5445db",
+        "id": "b1add4e3c1434652",
         "type": "tab",
         "label": "Heat Pump Feedforward",
         "disabled": false,
@@ -8,68 +8,206 @@
         "env": []
     },
     {
-        "type": "comment",
-        "name": "Heat Pump Feedforward (readme)",
-        "info": "# Heat pump feedforward\n\nCalculates the feedforward water temperature, every 5 minutes and on every input change.\nEach step is a group, from left to right:\n\n1. **Input**: all settings from Home Assistant\n2. **Outside temperature**: `input_select.heat_pump_feedforward_outside_source`\n   - *Current*: heat pump outside temperature, 24h average for the simple schedule\n   - *Forecast*: Met.no hourly forecast (`weather.forecast_home`, fetched every 30 minutes)\n     - heating curve: average over `window` hours starting `lead time` hours ahead, mixed with the current temperature by `weight`\n     - simple schedule: average over the next `simple forecast hours`\n     - bias correction (optional): shift the forecast by (measured - forecast) right now\n     - no forecast of the last 3 hours: use Current\n3. **Heating curve**: `water = slope * outside + intercept`, limited to min / max.\n   `input_select.heat_pump_feedforward_source`: *Manual* or *History* (from the Heat Pump History flow)\n4. **Simple day schedule**: when the average outside temperature >= the set value:\n   heat at 24 °C water from the start time until the inside temperature is reached, then off for the day\n5. **Output**: `global.heat_pump_feedforward` and event `heat_pump_feedforward`\n   -> `sensor.heat_pump_feedforward_water_temperature`, `binary_sensor.heat_pump_feedforward_heating`\n\n`heating` false: switch the heat pump off.",
-        "x": 160,
-        "y": 40,
-        "wires": [],
-        "id": "1e7d9319fd2199d8",
-        "z": "30c1cadb3f5445db"
-    },
-    {
+        "id": "3add72e9d5dd996b",
         "type": "group",
+        "z": "b1add4e3c1434652",
         "name": "Trigger",
         "style": {
             "label": true
         },
         "nodes": [
-            "3bed5c43fbcf1646",
-            "736a2fb822439a46",
-            "30bacea97f98e963"
+            "b557e06a26696085",
+            "93a21508d883eadf",
+            "9f14cbf39b630281",
+            "fcb06cdeb6f28e67"
         ],
-        "x": 11,
+        "x": 14,
         "y": 79,
-        "w": 330,
-        "h": 112,
-        "id": "7b5ee698cac28b91",
-        "z": "30c1cadb3f5445db"
+        "w": 352,
+        "h": 162
     },
     {
+        "id": "9ccab42d019ff166",
         "type": "group",
+        "z": "b1add4e3c1434652",
         "name": "Input",
         "style": {
             "label": true
         },
         "nodes": [
-            "2e7838b79a6c69ac",
-            "128e972ed7ba3ed4",
-            "2135a6c2eb7371e7",
-            "851bbc4f893f44f0",
-            "d3aa92a7f2f49ced",
-            "6b0111110de2dc26",
-            "19bffb623a389680",
-            "b022adda0d5f0cee",
-            "accc03992ae42663",
-            "66fb7a17d516d5b2",
-            "76f4920518273d52",
-            "a61c7bd01a2d6b25",
-            "a9671ded4d73064d",
-            "2dd1ebf803fee5fa",
-            "5c7cb34884168591",
-            "c0a55e3b85cafd7e",
-            "6c85a2d0f94b9418",
-            "0c86fb739462581f"
+            "bc6fea5f97fbcb36",
+            "928f63716c33431b",
+            "a009aa08abe9e019",
+            "9d6957f398339e71",
+            "a598f4def45309bf",
+            "8678632437d3f68d",
+            "36e46973de0d2daa",
+            "6ac6d1bebe09fc3e",
+            "6838ff7baa5c31ef",
+            "0c5a00f7b62ab5b9",
+            "efb756c6d9834a84",
+            "addebaba886bebcf",
+            "f2ec6b9859b5a1c0",
+            "3ae5b743b64cb136",
+            "2c586bcde195e809",
+            "091b7e1fb717b3e8",
+            "39152b89913c9783",
+            "15d7dbdbdb89ab9b",
+            "d9144c3b56bdccaf"
         ],
-        "x": 329,
-        "y": 79,
+        "x": 564,
+        "y": 59,
         "w": 302,
-        "h": 752,
-        "id": "9326d2530a306320",
-        "z": "30c1cadb3f5445db"
+        "h": 762
     },
     {
+        "id": "332bfaf514371b07",
+        "type": "group",
+        "z": "b1add4e3c1434652",
+        "name": "Weather forecast",
+        "style": {
+            "label": true
+        },
+        "nodes": [
+            "b3a6acf61628421e",
+            "e230f8866cb6f1b3",
+            "59aecaee732cb51f",
+            "60b57f0e80e7772e",
+            "b2176754d0e2dbb7"
+        ],
+        "x": 34,
+        "y": 259,
+        "w": 502,
+        "h": 122
+    },
+    {
+        "id": "e38fe8941b1a5c5c",
+        "type": "group",
+        "z": "b1add4e3c1434652",
+        "name": "Outside temperature",
+        "style": {
+            "label": true
+        },
+        "nodes": [
+            "9e4b0283b9a6fb1f",
+            "4a3a9106ab85b485",
+            "2e04dcbfd247dfa4",
+            "a05df45e23daf61f",
+            "ae942e8f53f186af",
+            "c34fa58dea289716",
+            "d9dca6488e26be9b",
+            "59802966c9b8c38f",
+            "0b2e227d906c7bb8",
+            "ff3dffba73f7d6f2",
+            "afca3372175a2e94",
+            "05fb81b9b8f107c6"
+        ],
+        "x": 944,
+        "y": 19,
+        "w": 1342,
+        "h": 182
+    },
+    {
+        "id": "484d4b3a7a26d554",
+        "type": "group",
+        "z": "b1add4e3c1434652",
+        "name": "Heating curve",
+        "style": {
+            "label": true
+        },
+        "nodes": [
+            "e18687b8f528a650",
+            "9bc931d4bd2823c3",
+            "5e48ee60f03d5124",
+            "780c18a2172e7612",
+            "f20a4c4f53d0851c",
+            "ca22e09f891966e8",
+            "9cbb17e1cdaade8b",
+            "6d95d97b65be60ea"
+        ],
+        "x": 944,
+        "y": 219,
+        "w": 1162,
+        "h": 142
+    },
+    {
+        "id": "4b14bc0bd3aa3937",
+        "type": "group",
+        "z": "b1add4e3c1434652",
+        "name": "Simple day schedule",
+        "style": {
+            "label": true
+        },
+        "nodes": [
+            "64a917ccfa17e43b",
+            "3883c8b19fb5be31",
+            "df0a65b4e4d4cf0e",
+            "a3179e5d93835cfb",
+            "6f906502086a48f6",
+            "86a1f05349ee034a",
+            "cde628270f7d4380",
+            "28c22e67c87a258e",
+            "bde568e47beb51ed",
+            "58d91bf7ceb09ee1"
+        ],
+        "x": 944,
+        "y": 379,
+        "w": 1262,
+        "h": 162
+    },
+    {
+        "id": "e41d71a6d8a7f5b3",
+        "type": "group",
+        "z": "b1add4e3c1434652",
+        "name": "Output",
+        "style": {
+            "label": true
+        },
+        "nodes": [
+            "e473924f4aa6cf0a",
+            "0201f7baaace7b98",
+            "2f99181a1097d40e",
+            "74eb2020c14094b7",
+            "1d11d8bcee4a95c4"
+        ],
+        "x": 944,
+        "y": 559,
+        "w": 722,
+        "h": 122
+    },
+    {
+        "id": "cb42b6eb1d49b347",
+        "type": "group",
+        "z": "b1add4e3c1434652",
+        "name": "Unhandled exceptions",
+        "style": {
+            "label": true
+        },
+        "nodes": [
+            "972a51bd71b7a7a5",
+            "f6869f4f6a58e1ca",
+            "569d781c5614fca2"
+        ],
+        "x": 39,
+        "y": 459,
+        "w": 407,
+        "h": 121
+    },
+    {
+        "id": "c9d49ffd416d0dce",
+        "type": "comment",
+        "z": "b1add4e3c1434652",
+        "name": "Heat Pump Feedforward (readme)",
+        "info": "# Heat pump feedforward\n\nCalculates the feedforward water temperature, every 5 minutes and on every input change.\nEach step is a group, from left to right:\n\n1. **Input**: all settings from Home Assistant\n2. **Outside temperature**: `input_select.heat_pump_feedforward_outside_source`\n   - *Current*: heat pump outside temperature, 24h average for the simple schedule\n   - *Forecast*: Met.no hourly forecast (`weather.forecast_home`, fetched every 30 minutes)\n     - heating curve: average over `window` hours starting `lead time` hours ahead, mixed with the current temperature by `weight`\n     - simple schedule: average over the next `simple forecast hours`\n     - bias correction (optional): shift the forecast by (measured - forecast) right now\n     - no forecast of the last 3 hours: use Current\n3. **Heating curve**: `water = slope * outside + intercept`, limited to min / max.\n   `input_select.heat_pump_feedforward_source`: *Manual* or *History* (from the Heat Pump History flow)\n4. **Simple day schedule**: when the average outside temperature >= the set value:\n   heat at 24 °C water from the start time until the inside temperature is reached, then off for the day\n5. **Output**: `global.heat_pump_feedforward` and event `heat_pump_feedforward`\n   -> `sensor.heat_pump_feedforward_water_temperature`, `binary_sensor.heat_pump_feedforward_heating`\n\n`heating` false: switch the heat pump off.",
+        "x": 160,
+        "y": 40,
+        "wires": []
+    },
+    {
+        "id": "bc6fea5f97fbcb36",
         "type": "function",
+        "z": "b1add4e3c1434652",
+        "g": "9ccab42d019ff166",
         "name": "Check input",
         "func": "// logger, usage: log(this, \"\");\nconst log = global.get('logger');\n\n// Stop when the outside temperature is unavailable\nif (!isFinite(msg.feedforward.outside_temp)) {\n    log(this, \"Outside temperature unavailable\", \"warn\");\n    node.status({ fill: \"red\", shape: \"ring\", text: \"No outside temperature\" });\n    return null;\n}\n\nnode.status({});\nreturn msg;",
         "outputs": 1,
@@ -78,19 +216,19 @@
         "initialize": "",
         "finalize": "",
         "libs": [],
-        "x": 480,
-        "y": 800,
+        "x": 710,
+        "y": 780,
         "wires": [
             [
-                "7a23f32b38f850d3"
+                "d9144c3b56bdccaf"
             ]
-        ],
-        "id": "2e7838b79a6c69ac",
-        "z": "30c1cadb3f5445db",
-        "g": "9326d2530a306320"
+        ]
     },
     {
+        "id": "928f63716c33431b",
         "type": "api-current-state",
+        "z": "b1add4e3c1434652",
+        "g": "9ccab42d019ff166",
         "name": "Simple stop inside temp",
         "server": "176d29a.6f648d6",
         "version": 3,
@@ -129,19 +267,19 @@
         "override_payload": "msg",
         "entity_location": "data",
         "override_data": "msg",
-        "x": 480,
-        "y": 760,
+        "x": 710,
+        "y": 740,
         "wires": [
             [
-                "2e7838b79a6c69ac"
+                "bc6fea5f97fbcb36"
             ]
-        ],
-        "id": "128e972ed7ba3ed4",
-        "z": "30c1cadb3f5445db",
-        "g": "9326d2530a306320"
+        ]
     },
     {
+        "id": "a009aa08abe9e019",
         "type": "api-current-state",
+        "z": "b1add4e3c1434652",
+        "g": "9ccab42d019ff166",
         "name": "Simple start time",
         "server": "176d29a.6f648d6",
         "version": 3,
@@ -180,19 +318,19 @@
         "override_payload": "msg",
         "entity_location": "data",
         "override_data": "msg",
-        "x": 480,
-        "y": 720,
+        "x": 710,
+        "y": 700,
         "wires": [
             [
-                "128e972ed7ba3ed4"
+                "928f63716c33431b"
             ]
-        ],
-        "id": "2135a6c2eb7371e7",
-        "z": "30c1cadb3f5445db",
-        "g": "9326d2530a306320"
+        ]
     },
     {
+        "id": "9d6957f398339e71",
         "type": "api-current-state",
+        "z": "b1add4e3c1434652",
+        "g": "9ccab42d019ff166",
         "name": "Simple from outside temp",
         "server": "176d29a.6f648d6",
         "version": 3,
@@ -231,19 +369,19 @@
         "override_payload": "msg",
         "entity_location": "data",
         "override_data": "msg",
-        "x": 480,
-        "y": 680,
+        "x": 710,
+        "y": 660,
         "wires": [
             [
-                "2135a6c2eb7371e7"
+                "a009aa08abe9e019"
             ]
-        ],
-        "id": "851bbc4f893f44f0",
-        "z": "30c1cadb3f5445db",
-        "g": "9326d2530a306320"
+        ]
     },
     {
+        "id": "a598f4def45309bf",
         "type": "api-current-state",
+        "z": "b1add4e3c1434652",
+        "g": "9ccab42d019ff166",
         "name": "Max water temp",
         "server": "176d29a.6f648d6",
         "version": 3,
@@ -282,19 +420,19 @@
         "override_payload": "msg",
         "entity_location": "data",
         "override_data": "msg",
-        "x": 480,
-        "y": 640,
+        "x": 710,
+        "y": 620,
         "wires": [
             [
-                "851bbc4f893f44f0"
+                "9d6957f398339e71"
             ]
-        ],
-        "id": "d3aa92a7f2f49ced",
-        "z": "30c1cadb3f5445db",
-        "g": "9326d2530a306320"
+        ]
     },
     {
+        "id": "8678632437d3f68d",
         "type": "api-current-state",
+        "z": "b1add4e3c1434652",
+        "g": "9ccab42d019ff166",
         "name": "Min water temp",
         "server": "176d29a.6f648d6",
         "version": 3,
@@ -333,19 +471,19 @@
         "override_payload": "msg",
         "entity_location": "data",
         "override_data": "msg",
-        "x": 480,
-        "y": 600,
+        "x": 710,
+        "y": 580,
         "wires": [
             [
-                "d3aa92a7f2f49ced"
+                "a598f4def45309bf"
             ]
-        ],
-        "id": "6b0111110de2dc26",
-        "z": "30c1cadb3f5445db",
-        "g": "9326d2530a306320"
+        ]
     },
     {
+        "id": "36e46973de0d2daa",
         "type": "api-current-state",
+        "z": "b1add4e3c1434652",
+        "g": "9ccab42d019ff166",
         "name": "Manual intercept",
         "server": "176d29a.6f648d6",
         "version": 3,
@@ -384,19 +522,19 @@
         "override_payload": "msg",
         "entity_location": "data",
         "override_data": "msg",
-        "x": 480,
-        "y": 560,
+        "x": 710,
+        "y": 540,
         "wires": [
             [
-                "6b0111110de2dc26"
+                "8678632437d3f68d"
             ]
-        ],
-        "id": "19bffb623a389680",
-        "z": "30c1cadb3f5445db",
-        "g": "9326d2530a306320"
+        ]
     },
     {
+        "id": "6ac6d1bebe09fc3e",
         "type": "api-current-state",
+        "z": "b1add4e3c1434652",
+        "g": "9ccab42d019ff166",
         "name": "Manual slope",
         "server": "176d29a.6f648d6",
         "version": 3,
@@ -435,19 +573,19 @@
         "override_payload": "msg",
         "entity_location": "data",
         "override_data": "msg",
-        "x": 480,
-        "y": 520,
+        "x": 710,
+        "y": 500,
         "wires": [
             [
-                "19bffb623a389680"
+                "36e46973de0d2daa"
             ]
-        ],
-        "id": "b022adda0d5f0cee",
-        "z": "30c1cadb3f5445db",
-        "g": "9326d2530a306320"
+        ]
     },
     {
+        "id": "6838ff7baa5c31ef",
         "type": "api-current-state",
+        "z": "b1add4e3c1434652",
+        "g": "9ccab42d019ff166",
         "name": "Source",
         "server": "176d29a.6f648d6",
         "version": 3,
@@ -486,19 +624,19 @@
         "override_payload": "msg",
         "entity_location": "data",
         "override_data": "msg",
-        "x": 480,
-        "y": 480,
+        "x": 710,
+        "y": 460,
         "wires": [
             [
-                "b022adda0d5f0cee"
+                "6ac6d1bebe09fc3e"
             ]
-        ],
-        "id": "accc03992ae42663",
-        "z": "30c1cadb3f5445db",
-        "g": "9326d2530a306320"
+        ]
     },
     {
+        "id": "0c5a00f7b62ab5b9",
         "type": "api-current-state",
+        "z": "b1add4e3c1434652",
+        "g": "9ccab42d019ff166",
         "name": "Simple forecast hours",
         "server": "176d29a.6f648d6",
         "version": 3,
@@ -537,19 +675,19 @@
         "override_payload": "msg",
         "entity_location": "data",
         "override_data": "msg",
-        "x": 480,
-        "y": 440,
+        "x": 710,
+        "y": 420,
         "wires": [
             [
-                "accc03992ae42663"
+                "6838ff7baa5c31ef"
             ]
-        ],
-        "id": "66fb7a17d516d5b2",
-        "z": "30c1cadb3f5445db",
-        "g": "9326d2530a306320"
+        ]
     },
     {
+        "id": "efb756c6d9834a84",
         "type": "api-current-state",
+        "z": "b1add4e3c1434652",
+        "g": "9ccab42d019ff166",
         "name": "Forecast bias correction",
         "server": "176d29a.6f648d6",
         "version": 3,
@@ -588,19 +726,19 @@
         "override_payload": "msg",
         "entity_location": "data",
         "override_data": "msg",
-        "x": 480,
-        "y": 400,
+        "x": 710,
+        "y": 380,
         "wires": [
             [
-                "66fb7a17d516d5b2"
+                "0c5a00f7b62ab5b9"
             ]
-        ],
-        "id": "76f4920518273d52",
-        "z": "30c1cadb3f5445db",
-        "g": "9326d2530a306320"
+        ]
     },
     {
+        "id": "addebaba886bebcf",
         "type": "api-current-state",
+        "z": "b1add4e3c1434652",
+        "g": "9ccab42d019ff166",
         "name": "Forecast weight",
         "server": "176d29a.6f648d6",
         "version": 3,
@@ -639,19 +777,19 @@
         "override_payload": "msg",
         "entity_location": "data",
         "override_data": "msg",
-        "x": 480,
-        "y": 360,
+        "x": 710,
+        "y": 340,
         "wires": [
             [
-                "76f4920518273d52"
+                "efb756c6d9834a84"
             ]
-        ],
-        "id": "a61c7bd01a2d6b25",
-        "z": "30c1cadb3f5445db",
-        "g": "9326d2530a306320"
+        ]
     },
     {
+        "id": "f2ec6b9859b5a1c0",
         "type": "api-current-state",
+        "z": "b1add4e3c1434652",
+        "g": "9ccab42d019ff166",
         "name": "Forecast window",
         "server": "176d29a.6f648d6",
         "version": 3,
@@ -690,19 +828,19 @@
         "override_payload": "msg",
         "entity_location": "data",
         "override_data": "msg",
-        "x": 480,
-        "y": 320,
+        "x": 710,
+        "y": 300,
         "wires": [
             [
-                "a61c7bd01a2d6b25"
+                "addebaba886bebcf"
             ]
-        ],
-        "id": "a9671ded4d73064d",
-        "z": "30c1cadb3f5445db",
-        "g": "9326d2530a306320"
+        ]
     },
     {
+        "id": "3ae5b743b64cb136",
         "type": "api-current-state",
+        "z": "b1add4e3c1434652",
+        "g": "9ccab42d019ff166",
         "name": "Forecast lead time",
         "server": "176d29a.6f648d6",
         "version": 3,
@@ -741,19 +879,19 @@
         "override_payload": "msg",
         "entity_location": "data",
         "override_data": "msg",
-        "x": 480,
-        "y": 280,
+        "x": 710,
+        "y": 260,
         "wires": [
             [
-                "a9671ded4d73064d"
+                "f2ec6b9859b5a1c0"
             ]
-        ],
-        "id": "2dd1ebf803fee5fa",
-        "z": "30c1cadb3f5445db",
-        "g": "9326d2530a306320"
+        ]
     },
     {
+        "id": "2c586bcde195e809",
         "type": "api-current-state",
+        "z": "b1add4e3c1434652",
+        "g": "9ccab42d019ff166",
         "name": "Outside source",
         "server": "176d29a.6f648d6",
         "version": 3,
@@ -792,19 +930,19 @@
         "override_payload": "msg",
         "entity_location": "data",
         "override_data": "msg",
-        "x": 480,
-        "y": 240,
+        "x": 710,
+        "y": 220,
         "wires": [
             [
-                "2dd1ebf803fee5fa"
+                "3ae5b743b64cb136"
             ]
-        ],
-        "id": "5c7cb34884168591",
-        "z": "30c1cadb3f5445db",
-        "g": "9326d2530a306320"
+        ]
     },
     {
+        "id": "091b7e1fb717b3e8",
         "type": "api-current-state",
+        "z": "b1add4e3c1434652",
+        "g": "9ccab42d019ff166",
         "name": "Inside temperature",
         "server": "176d29a.6f648d6",
         "version": 3,
@@ -843,19 +981,19 @@
         "override_payload": "msg",
         "entity_location": "data",
         "override_data": "msg",
-        "x": 480,
-        "y": 200,
+        "x": 710,
+        "y": 180,
         "wires": [
             [
-                "5c7cb34884168591"
+                "2c586bcde195e809"
             ]
-        ],
-        "id": "c0a55e3b85cafd7e",
-        "z": "30c1cadb3f5445db",
-        "g": "9326d2530a306320"
+        ]
     },
     {
+        "id": "39152b89913c9783",
         "type": "api-current-state",
+        "z": "b1add4e3c1434652",
+        "g": "9ccab42d019ff166",
         "name": "Outside temp 24h average",
         "server": "176d29a.6f648d6",
         "version": 3,
@@ -894,19 +1032,19 @@
         "override_payload": "msg",
         "entity_location": "data",
         "override_data": "msg",
-        "x": 480,
-        "y": 160,
+        "x": 710,
+        "y": 140,
         "wires": [
             [
-                "c0a55e3b85cafd7e"
+                "091b7e1fb717b3e8"
             ]
-        ],
-        "id": "6c85a2d0f94b9418",
-        "z": "30c1cadb3f5445db",
-        "g": "9326d2530a306320"
+        ]
     },
     {
+        "id": "15d7dbdbdb89ab9b",
         "type": "api-current-state",
+        "z": "b1add4e3c1434652",
+        "g": "9ccab42d019ff166",
         "name": "Outside temperature",
         "server": "176d29a.6f648d6",
         "version": 3,
@@ -945,19 +1083,19 @@
         "override_payload": "msg",
         "entity_location": "data",
         "override_data": "msg",
-        "x": 480,
-        "y": 120,
+        "x": 710,
+        "y": 100,
         "wires": [
             [
-                "6c85a2d0f94b9418"
+                "39152b89913c9783"
             ]
-        ],
-        "id": "0c86fb739462581f",
-        "z": "30c1cadb3f5445db",
-        "g": "9326d2530a306320"
+        ]
     },
     {
+        "id": "b557e06a26696085",
         "type": "function",
+        "z": "b1add4e3c1434652",
+        "g": "3add72e9d5dd996b",
         "name": "Init",
         "func": "// Init\nmsg.feedforward = {};\nreturn msg;",
         "outputs": 1,
@@ -966,19 +1104,19 @@
         "initialize": "",
         "finalize": "",
         "libs": [],
-        "x": 270,
+        "x": 290,
         "y": 140,
         "wires": [
             [
-                "0c86fb739462581f"
+                "15d7dbdbdb89ab9b"
             ]
-        ],
-        "id": "3bed5c43fbcf1646",
-        "z": "30c1cadb3f5445db",
-        "g": "7b5ee698cac28b91"
+        ]
     },
     {
+        "id": "93a21508d883eadf",
         "type": "inject",
+        "z": "b1add4e3c1434652",
+        "g": "3add72e9d5dd996b",
         "name": "Every 5 min",
         "props": [
             {
@@ -996,19 +1134,19 @@
         "topic": "",
         "payload": "",
         "payloadType": "date",
-        "x": 110,
+        "x": 130,
         "y": 120,
         "wires": [
             [
-                "3bed5c43fbcf1646"
+                "b557e06a26696085"
             ]
-        ],
-        "id": "736a2fb822439a46",
-        "z": "30c1cadb3f5445db",
-        "g": "7b5ee698cac28b91"
+        ]
     },
     {
+        "id": "9f14cbf39b630281",
         "type": "server-state-changed",
+        "z": "b1add4e3c1434652",
+        "g": "3add72e9d5dd996b",
         "name": "User input",
         "server": "176d29a.6f648d6",
         "version": 6,
@@ -1072,38 +1210,19 @@
                 "valueType": "triggerId"
             }
         ],
-        "x": 110,
+        "x": 130,
         "y": 160,
         "wires": [
             [
-                "3bed5c43fbcf1646"
+                "b557e06a26696085"
             ]
-        ],
-        "id": "30bacea97f98e963",
-        "z": "30c1cadb3f5445db",
-        "g": "7b5ee698cac28b91"
+        ]
     },
     {
-        "type": "group",
-        "name": "Weather forecast",
-        "style": {
-            "label": true
-        },
-        "nodes": [
-            "f42f53ae62c673a0",
-            "94c74de5e3e40852",
-            "e53d4cb331cec029",
-            "4bb7dde4c06140fb"
-        ],
-        "x": -3,
-        "y": 219,
-        "w": 388,
-        "h": 152,
-        "id": "78779419097bc164",
-        "z": "30c1cadb3f5445db"
-    },
-    {
+        "id": "b3a6acf61628421e",
         "type": "change",
+        "z": "b1add4e3c1434652",
+        "g": "332bfaf514371b07",
         "name": "Cache forecast",
         "rules": [
             {
@@ -1119,19 +1238,19 @@
         "from": "",
         "to": "",
         "reg": false,
-        "x": 270,
-        "y": 300,
+        "x": 380,
+        "y": 340,
         "wires": [
             [
-                "3bed5c43fbcf1646"
+                "b2176754d0e2dbb7"
             ]
-        ],
-        "id": "f42f53ae62c673a0",
-        "z": "30c1cadb3f5445db",
-        "g": "78779419097bc164"
+        ]
     },
     {
+        "id": "e230f8866cb6f1b3",
         "type": "debug",
+        "z": "b1add4e3c1434652",
+        "g": "332bfaf514371b07",
         "name": "Forecast",
         "active": false,
         "tosidebar": true,
@@ -1141,15 +1260,15 @@
         "targetType": "msg",
         "statusVal": "",
         "statusType": "auto",
-        "x": 270,
-        "y": 340,
-        "wires": [],
-        "id": "94c74de5e3e40852",
-        "z": "30c1cadb3f5445db",
-        "g": "78779419097bc164"
+        "x": 380,
+        "y": 300,
+        "wires": []
     },
     {
+        "id": "59aecaee732cb51f",
         "type": "api-call-service",
+        "z": "b1add4e3c1434652",
+        "g": "332bfaf514371b07",
         "name": "Hourly forecast",
         "server": "176d29a.6f648d6",
         "version": 7,
@@ -1178,20 +1297,20 @@
         "blockInputOverrides": true,
         "domain": "weather",
         "service": "get_forecasts",
-        "x": 270,
-        "y": 260,
+        "x": 160,
+        "y": 340,
         "wires": [
             [
-                "f42f53ae62c673a0",
-                "94c74de5e3e40852"
+                "b3a6acf61628421e",
+                "e230f8866cb6f1b3"
             ]
-        ],
-        "id": "e53d4cb331cec029",
-        "z": "30c1cadb3f5445db",
-        "g": "78779419097bc164"
+        ]
     },
     {
+        "id": "60b57f0e80e7772e",
         "type": "inject",
+        "z": "b1add4e3c1434652",
+        "g": "332bfaf514371b07",
         "name": "Every 30 min",
         "props": [
             {
@@ -1209,44 +1328,19 @@
         "topic": "",
         "payload": "",
         "payloadType": "date",
-        "x": 100,
-        "y": 260,
+        "x": 160,
+        "y": 300,
         "wires": [
             [
-                "e53d4cb331cec029"
+                "59aecaee732cb51f"
             ]
-        ],
-        "id": "4bb7dde4c06140fb",
-        "z": "30c1cadb3f5445db",
-        "g": "78779419097bc164"
+        ]
     },
     {
-        "type": "group",
-        "name": "Outside temperature",
-        "style": {
-            "label": true
-        },
-        "nodes": [
-            "7a23f32b38f850d3",
-            "55a094781bff47fe",
-            "b1476b11c7ec1991",
-            "ccaabed2f9a5345d",
-            "aa22872f8ef9f507",
-            "af550fea69ce6ad3",
-            "efba9bb06a76880d",
-            "a0ee27f9bda8fd42",
-            "edad1618025fce65",
-            "e9212f91e3286cae"
-        ],
-        "x": 669,
-        "y": 19,
-        "w": 1254,
-        "h": 172,
-        "id": "3fc28c723a38ad8f",
-        "z": "30c1cadb3f5445db"
-    },
-    {
+        "id": "9e4b0283b9a6fb1f",
         "type": "switch",
+        "z": "b1add4e3c1434652",
+        "g": "e38fe8941b1a5c5c",
         "name": "Outside source",
         "property": "feedforward.outside_source",
         "propertyType": "msg",
@@ -1263,22 +1357,22 @@
         "checkall": "false",
         "repair": false,
         "outputs": 2,
-        "x": 780,
-        "y": 120,
+        "x": 1100,
+        "y": 160,
         "wires": [
             [
-                "55a094781bff47fe"
+                "4a3a9106ab85b485"
             ],
             [
-                "e9212f91e3286cae"
+                "ff3dffba73f7d6f2"
             ]
-        ],
-        "id": "7a23f32b38f850d3",
-        "z": "30c1cadb3f5445db",
-        "g": "3fc28c723a38ad8f"
+        ]
     },
     {
+        "id": "4a3a9106ab85b485",
         "type": "change",
+        "z": "b1add4e3c1434652",
+        "g": "e38fe8941b1a5c5c",
         "name": "Get forecast",
         "rules": [
             {
@@ -1294,19 +1388,19 @@
         "from": "",
         "to": "",
         "reg": false,
-        "x": 950,
+        "x": 1270,
         "y": 100,
         "wires": [
             [
-                "b1476b11c7ec1991"
+                "2e04dcbfd247dfa4"
             ]
-        ],
-        "id": "55a094781bff47fe",
-        "z": "30c1cadb3f5445db",
-        "g": "3fc28c723a38ad8f"
+        ]
     },
     {
+        "id": "2e04dcbfd247dfa4",
         "type": "switch",
+        "z": "b1add4e3c1434652",
+        "g": "e38fe8941b1a5c5c",
         "name": "Forecast recent?",
         "property": "$exists(forecast.fetched) and $count(forecast.list) > 0 and\n$millis() - forecast.fetched < 3 * 3600000",
         "propertyType": "jsonata",
@@ -1321,22 +1415,22 @@
         "checkall": "false",
         "repair": false,
         "outputs": 2,
-        "x": 1120,
+        "x": 1440,
         "y": 100,
         "wires": [
             [
-                "ccaabed2f9a5345d"
+                "a05df45e23daf61f"
             ],
             [
-                "edad1618025fce65"
+                "0b2e227d906c7bb8"
             ]
-        ],
-        "id": "b1476b11c7ec1991",
-        "z": "30c1cadb3f5445db",
-        "g": "3fc28c723a38ad8f"
+        ]
     },
     {
+        "id": "a05df45e23daf61f",
         "type": "function",
+        "z": "b1add4e3c1434652",
+        "g": "e38fe8941b1a5c5c",
         "name": "Forecast averages",
         "func": "// Forecast temperatures from the cached hourly forecast\nconst ff = msg.feedforward;\nconst list = msg.forecast.list; // [{ t: ms, temp: °C }]\nconst HOUR_MS = 3_600_000;\nconst now = Date.now();\n\n// Temperature at time t, linear between the hourly forecast points\nfunction at(t) {\n    if (t <= list[0].t) return list[0].temp;\n    for (let i = 1; i < list.length; i++) {\n        if (t <= list[i].t) {\n            const a = list[i - 1], b = list[i];\n            return a.temp + (b.temp - a.temp) * (t - a.t) / (b.t - a.t);\n        }\n    }\n    return list[list.length - 1].temp;\n}\n\n// Average temperature over [from, from + hours], sampled every 15 minutes\nfunction average(from, hours) {\n    if (!(hours > 0)) return at(from);\n    const steps = Math.round(hours * 4);\n    let sum = 0;\n    for (let i = 0; i < steps; i++) sum += at(from + (i + 0.5) * hours * HOUR_MS / steps);\n    return sum / steps;\n}\n\nff.forecast_now = at(now);                                                            // bias correction\nff.forecast_temp = average(now + ff.forecast_lead_time * HOUR_MS, ff.forecast_window); // heating curve\nff.forecast_avg = average(now, ff.simple_forecast_hours);                             // simple schedule\n\nreturn msg;",
         "outputs": 1,
@@ -1345,19 +1439,19 @@
         "initialize": "",
         "finalize": "",
         "libs": [],
-        "x": 1300,
+        "x": 1620,
         "y": 80,
         "wires": [
             [
-                "aa22872f8ef9f507"
+                "ae942e8f53f186af"
             ]
-        ],
-        "id": "ccaabed2f9a5345d",
-        "z": "30c1cadb3f5445db",
-        "g": "3fc28c723a38ad8f"
+        ]
     },
     {
+        "id": "ae942e8f53f186af",
         "type": "switch",
+        "z": "b1add4e3c1434652",
+        "g": "e38fe8941b1a5c5c",
         "name": "Bias correction?",
         "property": "feedforward.forecast_bias_correction",
         "propertyType": "msg",
@@ -1374,22 +1468,22 @@
         "checkall": "false",
         "repair": false,
         "outputs": 2,
-        "x": 1480,
+        "x": 1800,
         "y": 80,
         "wires": [
             [
-                "af550fea69ce6ad3"
+                "c34fa58dea289716"
             ],
             [
-                "efba9bb06a76880d"
+                "d9dca6488e26be9b"
             ]
-        ],
-        "id": "aa22872f8ef9f507",
-        "z": "30c1cadb3f5445db",
-        "g": "3fc28c723a38ad8f"
+        ]
     },
     {
+        "id": "c34fa58dea289716",
         "type": "change",
+        "z": "b1add4e3c1434652",
+        "g": "e38fe8941b1a5c5c",
         "name": "Measure bias",
         "rules": [
             {
@@ -1405,19 +1499,19 @@
         "from": "",
         "to": "",
         "reg": false,
-        "x": 1650,
+        "x": 1970,
         "y": 60,
         "wires": [
             [
-                "a0ee27f9bda8fd42"
+                "59802966c9b8c38f"
             ]
-        ],
-        "id": "af550fea69ce6ad3",
-        "z": "30c1cadb3f5445db",
-        "g": "3fc28c723a38ad8f"
+        ]
     },
     {
+        "id": "d9dca6488e26be9b",
         "type": "change",
+        "z": "b1add4e3c1434652",
+        "g": "e38fe8941b1a5c5c",
         "name": "No bias",
         "rules": [
             {
@@ -1433,19 +1527,19 @@
         "from": "",
         "to": "",
         "reg": false,
-        "x": 1650,
+        "x": 1970,
         "y": 100,
         "wires": [
             [
-                "a0ee27f9bda8fd42"
+                "59802966c9b8c38f"
             ]
-        ],
-        "id": "efba9bb06a76880d",
-        "z": "30c1cadb3f5445db",
-        "g": "3fc28c723a38ad8f"
+        ]
     },
     {
+        "id": "59802966c9b8c38f",
         "type": "change",
+        "z": "b1add4e3c1434652",
+        "g": "e38fe8941b1a5c5c",
         "name": "Use forecast",
         "rules": [
             {
@@ -1480,19 +1574,19 @@
         "from": "",
         "to": "",
         "reg": false,
-        "x": 1820,
+        "x": 2140,
         "y": 80,
         "wires": [
             [
-                "ad17111227dd6cc6"
+                "05fb81b9b8f107c6"
             ]
-        ],
-        "id": "a0ee27f9bda8fd42",
-        "z": "30c1cadb3f5445db",
-        "g": "3fc28c723a38ad8f"
+        ]
     },
     {
+        "id": "0b2e227d906c7bb8",
         "type": "change",
+        "z": "b1add4e3c1434652",
+        "g": "e38fe8941b1a5c5c",
         "name": "Forecast unavailable",
         "rules": [
             {
@@ -1513,19 +1607,19 @@
         "from": "",
         "to": "",
         "reg": false,
-        "x": 1320,
+        "x": 1640,
         "y": 140,
         "wires": [
             [
-                "e9212f91e3286cae"
+                "ff3dffba73f7d6f2"
             ]
-        ],
-        "id": "edad1618025fce65",
-        "z": "30c1cadb3f5445db",
-        "g": "3fc28c723a38ad8f"
+        ]
     },
     {
+        "id": "ff3dffba73f7d6f2",
         "type": "change",
+        "z": "b1add4e3c1434652",
+        "g": "e38fe8941b1a5c5c",
         "name": "Use current",
         "rules": [
             {
@@ -1548,40 +1642,19 @@
         "from": "",
         "to": "",
         "reg": false,
-        "x": 1500,
+        "x": 1830,
         "y": 160,
         "wires": [
             [
-                "ad17111227dd6cc6"
+                "05fb81b9b8f107c6"
             ]
-        ],
-        "id": "e9212f91e3286cae",
-        "z": "30c1cadb3f5445db",
-        "g": "3fc28c723a38ad8f"
+        ]
     },
     {
-        "type": "group",
-        "name": "Heating curve",
-        "style": {
-            "label": true
-        },
-        "nodes": [
-            "ad17111227dd6cc6",
-            "65d9c6a38a4f29e4",
-            "9c6ef518c904d9ce",
-            "b8fa296fb6e58ac7",
-            "5870d89781dd832a",
-            "ff36868108d81d4c"
-        ],
-        "x": 677,
-        "y": 219,
-        "w": 1070,
-        "h": 132,
-        "id": "c31fba617253892f",
-        "z": "30c1cadb3f5445db"
-    },
-    {
+        "id": "e18687b8f528a650",
         "type": "switch",
+        "z": "b1add4e3c1434652",
+        "g": "484d4b3a7a26d554",
         "name": "Curve source",
         "property": "feedforward.source",
         "propertyType": "msg",
@@ -1598,22 +1671,22 @@
         "checkall": "false",
         "repair": false,
         "outputs": 2,
-        "x": 780,
-        "y": 300,
+        "x": 1090,
+        "y": 320,
         "wires": [
             [
-                "65d9c6a38a4f29e4"
+                "9bc931d4bd2823c3"
             ],
             [
-                "5870d89781dd832a"
+                "f20a4c4f53d0851c"
             ]
-        ],
-        "id": "ad17111227dd6cc6",
-        "z": "30c1cadb3f5445db",
-        "g": "c31fba617253892f"
+        ]
     },
     {
+        "id": "9bc931d4bd2823c3",
         "type": "switch",
+        "z": "b1add4e3c1434652",
+        "g": "484d4b3a7a26d554",
         "name": "History curve available?",
         "property": "$exists($globalContext(\"heat_pump_history\").fit.water_target_temp.slope)",
         "propertyType": "jsonata",
@@ -1628,22 +1701,22 @@
         "checkall": "false",
         "repair": false,
         "outputs": 2,
-        "x": 980,
+        "x": 1290,
         "y": 280,
         "wires": [
             [
-                "9c6ef518c904d9ce"
+                "5e48ee60f03d5124"
             ],
             [
-                "b8fa296fb6e58ac7"
+                "780c18a2172e7612"
             ]
-        ],
-        "id": "65d9c6a38a4f29e4",
-        "z": "30c1cadb3f5445db",
-        "g": "c31fba617253892f"
+        ]
     },
     {
+        "id": "5e48ee60f03d5124",
         "type": "change",
+        "z": "b1add4e3c1434652",
+        "g": "484d4b3a7a26d554",
         "name": "Use history curve",
         "rules": [
             {
@@ -1666,19 +1739,19 @@
         "from": "",
         "to": "",
         "reg": false,
-        "x": 1200,
+        "x": 1510,
         "y": 260,
         "wires": [
             [
-                "ff36868108d81d4c"
+                "ca22e09f891966e8"
             ]
-        ],
-        "id": "9c6ef518c904d9ce",
-        "z": "30c1cadb3f5445db",
-        "g": "c31fba617253892f"
+        ]
     },
     {
+        "id": "780c18a2172e7612",
         "type": "change",
+        "z": "b1add4e3c1434652",
+        "g": "484d4b3a7a26d554",
         "name": "History unavailable",
         "rules": [
             {
@@ -1694,19 +1767,19 @@
         "from": "",
         "to": "",
         "reg": false,
-        "x": 1200,
+        "x": 1510,
         "y": 300,
         "wires": [
             [
-                "5870d89781dd832a"
+                "f20a4c4f53d0851c"
             ]
-        ],
-        "id": "b8fa296fb6e58ac7",
-        "z": "30c1cadb3f5445db",
-        "g": "c31fba617253892f"
+        ]
     },
     {
+        "id": "f20a4c4f53d0851c",
         "type": "change",
+        "z": "b1add4e3c1434652",
+        "g": "484d4b3a7a26d554",
         "name": "Use manual curve",
         "rules": [
             {
@@ -1729,19 +1802,19 @@
         "from": "",
         "to": "",
         "reg": false,
-        "x": 1390,
+        "x": 1700,
         "y": 320,
         "wires": [
             [
-                "ff36868108d81d4c"
+                "ca22e09f891966e8"
             ]
-        ],
-        "id": "5870d89781dd832a",
-        "z": "30c1cadb3f5445db",
-        "g": "c31fba617253892f"
+        ]
     },
     {
+        "id": "ca22e09f891966e8",
         "type": "change",
+        "z": "b1add4e3c1434652",
+        "g": "484d4b3a7a26d554",
         "name": "Curve water temperature",
         "rules": [
             {
@@ -1771,41 +1844,19 @@
         "from": "",
         "to": "",
         "reg": false,
-        "x": 1600,
+        "x": 1910,
         "y": 280,
         "wires": [
             [
-                "3e0bdac6b10e1948"
+                "6d95d97b65be60ea"
             ]
-        ],
-        "id": "ff36868108d81d4c",
-        "z": "30c1cadb3f5445db",
-        "g": "c31fba617253892f"
+        ]
     },
     {
-        "type": "group",
-        "name": "Simple day schedule",
-        "style": {
-            "label": true
-        },
-        "nodes": [
-            "3e0bdac6b10e1948",
-            "9880e4aac727cfad",
-            "397b3aad0d3165b9",
-            "719f04cdea594702",
-            "d31920daeed83509",
-            "50061ea70d361e7a",
-            "ebcb2f9d4c35dc1c"
-        ],
-        "x": 673,
-        "y": 379,
-        "w": 1138,
-        "h": 112,
-        "id": "c812e29b26ecac8b",
-        "z": "30c1cadb3f5445db"
-    },
-    {
+        "id": "64a917ccfa17e43b",
         "type": "switch",
+        "z": "b1add4e3c1434652",
+        "g": "4b14bc0bd3aa3937",
         "name": "Mild weather?",
         "property": "feedforward.outside_temp_avg_used",
         "propertyType": "msg",
@@ -1822,22 +1873,22 @@
         "checkall": "false",
         "repair": false,
         "outputs": 2,
-        "x": 780,
+        "x": 1100,
         "y": 460,
         "wires": [
             [
-                "9880e4aac727cfad"
+                "3883c8b19fb5be31"
             ],
             [
-                "b530d8f114f2c5cd"
+                "bde568e47beb51ed"
             ]
-        ],
-        "id": "3e0bdac6b10e1948",
-        "z": "30c1cadb3f5445db",
-        "g": "c812e29b26ecac8b"
+        ]
     },
     {
+        "id": "3883c8b19fb5be31",
         "type": "change",
+        "z": "b1add4e3c1434652",
+        "g": "4b14bc0bd3aa3937",
         "name": "Simple: 24 °C water",
         "rules": [
             {
@@ -1860,19 +1911,19 @@
         "from": "",
         "to": "",
         "reg": false,
-        "x": 970,
+        "x": 1290,
         "y": 440,
         "wires": [
             [
-                "397b3aad0d3165b9"
+                "df0a65b4e4d4cf0e"
             ]
-        ],
-        "id": "9880e4aac727cfad",
-        "z": "30c1cadb3f5445db",
-        "g": "c812e29b26ecac8b"
+        ]
     },
     {
+        "id": "df0a65b4e4d4cf0e",
         "type": "function",
+        "z": "b1add4e3c1434652",
+        "g": "4b14bc0bd3aa3937",
         "name": "Heating day",
         "func": "// The heating day starts at the start time, before that time the previous day still counts\nconst [h, m] = String(msg.feedforward.simple_start_time || \"00:00\").split(\":\").map(Number);\nconst start = new Date();\nstart.setHours(h || 0, m || 0, 0, 0);\nif (Date.now() < start.getTime()) start.setDate(start.getDate() - 1);\n\nmsg.feedforward.heating_day = start.toISOString();\nreturn msg;",
         "outputs": 1,
@@ -1881,19 +1932,19 @@
         "initialize": "",
         "finalize": "",
         "libs": [],
-        "x": 1150,
+        "x": 1470,
         "y": 440,
         "wires": [
             [
-                "719f04cdea594702"
+                "a3179e5d93835cfb"
             ]
-        ],
-        "id": "397b3aad0d3165b9",
-        "z": "30c1cadb3f5445db",
-        "g": "c812e29b26ecac8b"
+        ]
     },
     {
+        "id": "a3179e5d93835cfb",
         "type": "switch",
+        "z": "b1add4e3c1434652",
+        "g": "4b14bc0bd3aa3937",
         "name": "Stopped today?",
         "property": "feedforward.heating_day",
         "propertyType": "msg",
@@ -1910,22 +1961,22 @@
         "checkall": "false",
         "repair": false,
         "outputs": 2,
-        "x": 1310,
+        "x": 1630,
         "y": 440,
         "wires": [
             [
-                "d31920daeed83509"
+                "6f906502086a48f6"
             ],
             [
-                "50061ea70d361e7a"
+                "86a1f05349ee034a"
             ]
-        ],
-        "id": "719f04cdea594702",
-        "z": "30c1cadb3f5445db",
-        "g": "c812e29b26ecac8b"
+        ]
     },
     {
+        "id": "6f906502086a48f6",
         "type": "change",
+        "z": "b1add4e3c1434652",
+        "g": "4b14bc0bd3aa3937",
         "name": "Off for today",
         "rules": [
             {
@@ -1941,19 +1992,19 @@
         "from": "",
         "to": "",
         "reg": false,
-        "x": 1500,
+        "x": 1810,
         "y": 420,
         "wires": [
             [
-                "b530d8f114f2c5cd"
+                "58d91bf7ceb09ee1"
             ]
-        ],
-        "id": "d31920daeed83509",
-        "z": "30c1cadb3f5445db",
-        "g": "c812e29b26ecac8b"
+        ]
     },
     {
+        "id": "86a1f05349ee034a",
         "type": "switch",
+        "z": "b1add4e3c1434652",
+        "g": "4b14bc0bd3aa3937",
         "name": "Inside temp reached?",
         "property": "feedforward.inside_temp",
         "propertyType": "msg",
@@ -1970,22 +2021,22 @@
         "checkall": "false",
         "repair": false,
         "outputs": 2,
-        "x": 1500,
+        "x": 1840,
         "y": 460,
         "wires": [
             [
-                "ebcb2f9d4c35dc1c"
+                "cde628270f7d4380"
             ],
             [
-                "b530d8f114f2c5cd"
+                "58d91bf7ceb09ee1"
             ]
-        ],
-        "id": "50061ea70d361e7a",
-        "z": "30c1cadb3f5445db",
-        "g": "c812e29b26ecac8b"
+        ]
     },
     {
+        "id": "cde628270f7d4380",
         "type": "change",
+        "z": "b1add4e3c1434652",
+        "g": "4b14bc0bd3aa3937",
         "name": "Stop for today",
         "rules": [
             {
@@ -2008,38 +2059,19 @@
         "from": "",
         "to": "",
         "reg": false,
-        "x": 1700,
-        "y": 440,
+        "x": 2040,
+        "y": 500,
         "wires": [
             [
-                "b530d8f114f2c5cd"
+                "58d91bf7ceb09ee1"
             ]
-        ],
-        "id": "ebcb2f9d4c35dc1c",
-        "z": "30c1cadb3f5445db",
-        "g": "c812e29b26ecac8b"
+        ]
     },
     {
-        "type": "group",
-        "name": "Output",
-        "style": {
-            "label": true
-        },
-        "nodes": [
-            "b530d8f114f2c5cd",
-            "90a2bb64e13e05eb",
-            "fe119518fd53b363",
-            "1ca69e4eb1dc3922"
-        ],
-        "x": 655,
-        "y": 539,
-        "w": 684,
-        "h": 112,
-        "id": "e724741a7d284c34",
-        "z": "30c1cadb3f5445db"
-    },
-    {
+        "id": "e473924f4aa6cf0a",
         "type": "change",
+        "z": "b1add4e3c1434652",
+        "g": "e41d71a6d8a7f5b3",
         "name": "Round and expected values",
         "rules": [
             {
@@ -2097,19 +2129,19 @@
         "from": "",
         "to": "",
         "reg": false,
-        "x": 810,
-        "y": 600,
+        "x": 1140,
+        "y": 620,
         "wires": [
             [
-                "90a2bb64e13e05eb"
+                "0201f7baaace7b98"
             ]
-        ],
-        "id": "b530d8f114f2c5cd",
-        "z": "30c1cadb3f5445db",
-        "g": "e724741a7d284c34"
+        ]
     },
     {
+        "id": "0201f7baaace7b98",
         "type": "function",
+        "z": "b1add4e3c1434652",
+        "g": "e41d71a6d8a7f5b3",
         "name": "Status",
         "func": "// Status\nconst ff = msg.feedforward;\nconst text = ff.heating ? `${ff.water_temp} °C` : \"Off for today\";\nnode.status({ fill: ff.heating ? \"green\" : \"grey\", shape: \"dot\", text: `${text} @ ${ff.outside_temp_used} °C (${ff.mode}, ${ff.source}, ${ff.outside_source})` });\n\nreturn msg;",
         "outputs": 1,
@@ -2118,37 +2150,37 @@
         "initialize": "",
         "finalize": "",
         "libs": [],
-        "x": 1010,
-        "y": 600,
+        "x": 1340,
+        "y": 620,
         "wires": [
             [
-                "fe119518fd53b363",
-                "1ca69e4eb1dc3922"
+                "2f99181a1097d40e",
+                "74eb2020c14094b7"
             ]
-        ],
-        "id": "90a2bb64e13e05eb",
-        "z": "30c1cadb3f5445db",
-        "g": "e724741a7d284c34"
+        ]
     },
     {
+        "id": "2f99181a1097d40e",
         "type": "ha-fire-event",
+        "z": "b1add4e3c1434652",
+        "g": "e41d71a6d8a7f5b3",
         "name": "Heat pump feedforward",
         "server": "176d29a.6f648d6",
         "version": 0,
         "event": "heat_pump_feedforward",
         "data": "msg.feedforward",
         "dataType": "jsonata",
-        "x": 1200,
-        "y": 580,
+        "x": 1530,
+        "y": 600,
         "wires": [
             []
-        ],
-        "id": "fe119518fd53b363",
-        "z": "30c1cadb3f5445db",
-        "g": "e724741a7d284c34"
+        ]
     },
     {
+        "id": "74eb2020c14094b7",
         "type": "debug",
+        "z": "b1add4e3c1434652",
+        "g": "e41d71a6d8a7f5b3",
         "name": "Feedforward",
         "active": false,
         "tosidebar": true,
@@ -2158,33 +2190,15 @@
         "targetType": "msg",
         "statusVal": "",
         "statusType": "auto",
-        "x": 1180,
-        "y": 620,
-        "wires": [],
-        "id": "1ca69e4eb1dc3922",
-        "z": "30c1cadb3f5445db",
-        "g": "e724741a7d284c34"
+        "x": 1510,
+        "y": 640,
+        "wires": []
     },
     {
-        "type": "group",
-        "name": "Unhandled exceptions",
-        "style": {
-            "label": true
-        },
-        "nodes": [
-            "4d9c58bfbe56084a",
-            "07f7c8b9e829f792",
-            "518ae76f032fbbbe"
-        ],
-        "x": -5,
-        "y": 420,
-        "w": 314,
-        "h": 72,
-        "id": "ea4768efe78f4b4f",
-        "z": "30c1cadb3f5445db"
-    },
-    {
+        "id": "972a51bd71b7a7a5",
         "type": "debug",
+        "z": "b1add4e3c1434652",
+        "g": "cb42b6eb1d49b347",
         "name": "Errors",
         "active": false,
         "tosidebar": true,
@@ -2194,15 +2208,15 @@
         "targetType": "msg",
         "statusVal": "",
         "statusType": "auto",
-        "x": 230,
-        "y": 461,
-        "wires": [],
-        "id": "4d9c58bfbe56084a",
-        "z": "30c1cadb3f5445db",
-        "g": "ea4768efe78f4b4f"
+        "x": 290,
+        "y": 500,
+        "wires": []
     },
     {
+        "id": "f6869f4f6a58e1ca",
         "type": "function",
+        "z": "b1add4e3c1434652",
+        "g": "cb42b6eb1d49b347",
         "name": "Unhandled Exception",
         "func": "// Log unhandled exception\nconst handle = global.get('unhandledException');\nif(handle) handle(this);\n\nreturn msg;",
         "outputs": 1,
@@ -2211,32 +2225,199 @@
         "initialize": "",
         "finalize": "",
         "libs": [],
-        "x": 150,
-        "y": 461,
+        "x": 320,
+        "y": 539,
         "wires": [
             [
-                "4d9c58bfbe56084a"
+                "972a51bd71b7a7a5"
             ]
-        ],
-        "id": "07f7c8b9e829f792",
-        "z": "30c1cadb3f5445db",
-        "g": "ea4768efe78f4b4f"
+        ]
     },
     {
+        "id": "569d781c5614fca2",
         "type": "catch",
+        "z": "b1add4e3c1434652",
+        "g": "cb42b6eb1d49b347",
         "name": "",
         "scope": null,
         "uncaught": false,
-        "x": 65,
-        "y": 461,
+        "x": 125,
+        "y": 500,
         "wires": [
             [
-                "07f7c8b9e829f792"
+                "f6869f4f6a58e1ca"
             ]
+        ]
+    },
+    {
+        "id": "b2176754d0e2dbb7",
+        "type": "link out",
+        "z": "b1add4e3c1434652",
+        "g": "332bfaf514371b07",
+        "name": "weather forecast out",
+        "mode": "link",
+        "links": [
+            "fcb06cdeb6f28e67"
         ],
-        "id": "518ae76f032fbbbe",
-        "z": "30c1cadb3f5445db",
-        "g": "ea4768efe78f4b4f"
+        "x": 495,
+        "y": 340,
+        "wires": []
+    },
+    {
+        "id": "fcb06cdeb6f28e67",
+        "type": "link in",
+        "z": "b1add4e3c1434652",
+        "g": "3add72e9d5dd996b",
+        "name": "weather forecast in",
+        "links": [
+            "b2176754d0e2dbb7"
+        ],
+        "x": 175,
+        "y": 200,
+        "wires": [
+            [
+                "b557e06a26696085"
+            ]
+        ]
+    },
+    {
+        "id": "afca3372175a2e94",
+        "type": "link in",
+        "z": "b1add4e3c1434652",
+        "g": "e38fe8941b1a5c5c",
+        "name": "Input in",
+        "links": [
+            "d9144c3b56bdccaf"
+        ],
+        "x": 985,
+        "y": 160,
+        "wires": [
+            [
+                "9e4b0283b9a6fb1f"
+            ]
+        ]
+    },
+    {
+        "id": "d9144c3b56bdccaf",
+        "type": "link out",
+        "z": "b1add4e3c1434652",
+        "g": "9ccab42d019ff166",
+        "name": "input out",
+        "mode": "link",
+        "links": [
+            "afca3372175a2e94"
+        ],
+        "x": 825,
+        "y": 780,
+        "wires": []
+    },
+    {
+        "id": "9cbb17e1cdaade8b",
+        "type": "link in",
+        "z": "b1add4e3c1434652",
+        "g": "484d4b3a7a26d554",
+        "name": "outside temp in",
+        "links": [
+            "05fb81b9b8f107c6"
+        ],
+        "x": 985,
+        "y": 320,
+        "wires": [
+            [
+                "e18687b8f528a650"
+            ]
+        ]
+    },
+    {
+        "id": "05fb81b9b8f107c6",
+        "type": "link out",
+        "z": "b1add4e3c1434652",
+        "g": "e38fe8941b1a5c5c",
+        "name": "outside temp out",
+        "mode": "link",
+        "links": [
+            "9cbb17e1cdaade8b"
+        ],
+        "x": 2245,
+        "y": 140,
+        "wires": []
+    },
+    {
+        "id": "28c22e67c87a258e",
+        "type": "link in",
+        "z": "b1add4e3c1434652",
+        "g": "4b14bc0bd3aa3937",
+        "name": "Heating curve in",
+        "links": [
+            "6d95d97b65be60ea"
+        ],
+        "x": 985,
+        "y": 460,
+        "wires": [
+            [
+                "64a917ccfa17e43b"
+            ]
+        ]
+    },
+    {
+        "id": "6d95d97b65be60ea",
+        "type": "link out",
+        "z": "b1add4e3c1434652",
+        "g": "484d4b3a7a26d554",
+        "name": "Heating curve out",
+        "mode": "link",
+        "links": [
+            "28c22e67c87a258e"
+        ],
+        "x": 2065,
+        "y": 280,
+        "wires": []
+    },
+    {
+        "id": "1d11d8bcee4a95c4",
+        "type": "link in",
+        "z": "b1add4e3c1434652",
+        "g": "e41d71a6d8a7f5b3",
+        "name": "simple day in",
+        "links": [
+            "58d91bf7ceb09ee1",
+            "bde568e47beb51ed"
+        ],
+        "x": 985,
+        "y": 620,
+        "wires": [
+            [
+                "e473924f4aa6cf0a"
+            ]
+        ]
+    },
+    {
+        "id": "58d91bf7ceb09ee1",
+        "type": "link out",
+        "z": "b1add4e3c1434652",
+        "g": "4b14bc0bd3aa3937",
+        "name": "Simple day out",
+        "mode": "link",
+        "links": [
+            "1d11d8bcee4a95c4"
+        ],
+        "x": 2165,
+        "y": 420,
+        "wires": []
+    },
+    {
+        "id": "bde568e47beb51ed",
+        "type": "link out",
+        "z": "b1add4e3c1434652",
+        "g": "4b14bc0bd3aa3937",
+        "name": "Simple day out",
+        "mode": "link",
+        "links": [
+            "1d11d8bcee4a95c4"
+        ],
+        "x": 1265,
+        "y": 480,
+        "wires": []
     },
     {
         "id": "176d29a.6f648d6",
@@ -2253,11 +2434,11 @@
         "enableGlobalContextStore": false
     },
     {
-        "id": "04d481a3af3fd8f1",
+        "id": "370c0b14f233b283",
         "type": "global-config",
         "env": [],
         "modules": {
-            "node-red-contrib-home-assistant-websocket": "0.80.3"
+            "node-red-contrib-home-assistant-websocket": "0.81.0"
         }
     }
 ]

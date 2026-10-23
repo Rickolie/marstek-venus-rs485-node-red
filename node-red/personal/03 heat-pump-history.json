@@ -10,7 +10,7 @@
     {
         "type": "comment",
         "name": "Heat Pump History (readme)",
-        "info": "# Heat pump history\n\nCalculates per day, from **all** Home Assistant history:\n- average outside temperature `sensor.sparrow_p60_heat_pump_outside_temperature`\n- average water target temperature `sensor.sparrow_p60_heat_pump_water_target_temperature`\n- average power and energy `sensor.sparrow_p60_heat_pump`\n- average COP `sensor.heatpump_cop_not_below_0`, COP = 0 is excluded\n\nOnly days on which the heat pump has been used are taken into account\n(see the settings at the top of `Calculate daily averages`).\n\n## Data\n- **State history**: exact, time-weighted. Only as far back as the recorder keeps it (`purge_keep_days`, default 10 days).\n- **Long-term statistics**: hourly mean/min/max, kept forever. Fills in the older days.\n  Only available for sensors with a `state_class`, see `heat_pump_feedforward.yaml`.\n\n## Output\n- `global.heat_pump_history` (incl. the list of days) for use in other flows\n- Home Assistant event `heat_pump_history` -> `sensor.heat_pump_history`\n\n`fit` gives the relation to the outside temperature, used as heating curve by the feedforward:\n`value = slope * outside_temp + intercept`\n\n`curve` gives the averages per whole °C outside temperature.",
+        "info": "# Heat pump history\n\nCalculates per day, from **all** Home Assistant history:\n- average outside temperature `sensor.sparrow_p60_heat_pump_outside_temperature`\n- average water target temperature `sensor.sparrow_p60_heat_pump_water_target_temperature`\n- average power and energy `sensor.sparrow_p60_heat_pump`\n- average COP `sensor.heatpump_cop_not_below_0`, COP = 0 is excluded\n\nEach step is a group:\n\n1. **Trigger**: daily at 00:05 and at deploy. `Settings` holds the thresholds and the sensors\n2. **Get all history**\n   - *State history*: exact, only as far back as the recorder keeps it (`purge_keep_days`, default 10 days)\n   - *Long-term statistics*: hourly mean/min/max, kept forever. Only for sensors with a `state_class`\n3. **Daily values**: time-weighted averages per day from the state history, and per day from the\n   statistics. Only days with data for >= `min_day_coverage` of the day\n4. **Select days**: the state history wins over the statistics. Only days on which the heat pump\n   has been used: energy >= `min_day_energy` and power above `min_run_power` at some point\n5. **Relation to outside temperature**: `fit` (value = slope * outside_temp + intercept, used as heating\n   curve by the feedforward), `averages` and `curve` (averages per whole °C outside temperature)\n6. **Output**: `global.heat_pump_history` (incl. the list of days) and event `heat_pump_history`\n   -> `sensor.heat_pump_history`",
         "x": 160,
         "y": 40,
         "wires": [],
@@ -24,15 +24,148 @@
             "label": true
         },
         "nodes": [
+            "3048450e02cfd62f",
             "c9c2b3f91b34f94b",
-            "e33f0fe238eb8089"
+            "e33f0fe238eb8089",
+            "2903e1e3cf6ccd86"
         ],
-        "x": 14,
+        "x": 35,
         "y": 79,
-        "w": 172,
-        "h": 122,
+        "w": 390,
+        "h": 112,
         "id": "92487d0d197600bf",
         "z": "637c08aefe059a43"
+    },
+    {
+        "type": "change",
+        "name": "Settings",
+        "rules": [
+            {
+                "t": "set",
+                "p": "settings.min_run_power",
+                "pt": "msg",
+                "to": "50",
+                "tot": "num"
+            },
+            {
+                "t": "set",
+                "p": "settings.min_day_energy",
+                "pt": "msg",
+                "to": "0.5",
+                "tot": "num"
+            },
+            {
+                "t": "set",
+                "p": "settings.min_day_coverage",
+                "pt": "msg",
+                "to": "0.9",
+                "tot": "num"
+            },
+            {
+                "t": "set",
+                "p": "settings.entity.outside",
+                "pt": "msg",
+                "to": "sensor.sparrow_p60_heat_pump_outside_temperature",
+                "tot": "str"
+            },
+            {
+                "t": "set",
+                "p": "settings.entity.water",
+                "pt": "msg",
+                "to": "sensor.sparrow_p60_heat_pump_water_target_temperature",
+                "tot": "str"
+            },
+            {
+                "t": "set",
+                "p": "settings.entity.power",
+                "pt": "msg",
+                "to": "sensor.sparrow_p60_heat_pump",
+                "tot": "str"
+            },
+            {
+                "t": "set",
+                "p": "settings.entity.cop",
+                "pt": "msg",
+                "to": "sensor.heatpump_cop_not_below_0",
+                "tot": "str"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 290,
+        "y": 140,
+        "wires": [
+            [
+                "2903e1e3cf6ccd86"
+            ]
+        ],
+        "id": "3048450e02cfd62f",
+        "z": "637c08aefe059a43",
+        "g": "92487d0d197600bf",
+        "info": "- `min_run_power` (W): above this power the heat pump is running\n- `min_day_energy` (kWh): a day with less energy counts as 'not used'\n- `min_day_coverage`: fraction of the day the sensors must have valid data\n- `entity`: the sensors, also set them in the two `Get all history` nodes"
+    },
+    {
+        "type": "inject",
+        "name": "Daily",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "05 00 * * *",
+        "once": true,
+        "onceDelay": "10",
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 110,
+        "y": 120,
+        "wires": [
+            [
+                "3048450e02cfd62f"
+            ]
+        ],
+        "id": "c9c2b3f91b34f94b",
+        "z": "637c08aefe059a43",
+        "g": "92487d0d197600bf"
+    },
+    {
+        "type": "inject",
+        "name": "Test",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": "10",
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 110,
+        "y": 160,
+        "wires": [
+            [
+                "3048450e02cfd62f"
+            ]
+        ],
+        "id": "e33f0fe238eb8089",
+        "z": "637c08aefe059a43",
+        "g": "92487d0d197600bf"
     },
     {
         "type": "group",
@@ -42,54 +175,16 @@
         },
         "nodes": [
             "97aee2703b8a6177",
-            "c8c1aecf46a778eb"
+            "c8c1aecf46a778eb",
+            "8ee6a81cdcada53e",
+            "087996a943241dfe"
         ],
-        "x": 214,
-        "y": 79,
-        "w": 232,
-        "h": 122,
+        "x": 455,
+        "y": 99,
+        "w": 450,
+        "h": 72,
         "id": "dc8d460d15034b92",
         "z": "637c08aefe059a43"
-    },
-    {
-        "type": "group",
-        "name": "Calculate",
-        "style": {
-            "label": true
-        },
-        "nodes": [
-            "12470bc15a42b996",
-            "3399b6f223767123",
-            "0a9b923c09d69e99"
-        ],
-        "x": 474,
-        "y": 79,
-        "w": 352,
-        "h": 162,
-        "id": "58f6ac0df679b818",
-        "z": "637c08aefe059a43"
-    },
-    {
-        "type": "function",
-        "name": "Calculate daily averages",
-        "func": "// logger, usage: log(this, \"\");\nconst log = global.get('logger');\n\n// 1.  Settings\n// A day only counts when the heat pump has actually been used on that day.\nconst MIN_RUN_POWER_W = 50;      // power above this value counts as 'running'\nconst MIN_DAY_ENERGY_KWH = 0.5;  // a day with less energy counts as 'not used'\nconst MIN_DAY_COVERAGE = 0.9;    // fraction of the day the sensors must have valid data\n\nconst ENTITY = {\n    outside: \"sensor.sparrow_p60_heat_pump_outside_temperature\",\n    water: \"sensor.sparrow_p60_heat_pump_water_target_temperature\",\n    power: \"sensor.sparrow_p60_heat_pump\",\n    cop: \"sensor.heatpump_cop_not_below_0\",\n};\n\n// 2.  Input\n// msg.history:    state history per entity_id (exact, only as far back as the recorder keeps it)\n// msg.statistics: hourly long-term statistics per entity_id (kept forever, mean/min/max per hour)\nconst history = msg.history || {};\nconst statistics = msg.statistics || {};\n\nconst DAY_MS = 86_400_000;\nconst HOUR_MS = 3_600_000;\nconst now = Date.now();\n\n// Local midnight of the day after timestamp t\nconst nextDayStart = (t) => {\n    const d = new Date(t);\n    return new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1).getTime();\n};\nconst dayKey = (t) => {\n    const d = new Date(t);\n    const pad = (v) => String(v).padStart(2, \"0\");\n    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;\n};\nconst toMs = (t) => typeof t === \"number\" ? (t < 1e12 ? t * 1000 : t) : new Date(t).getTime();\nconst round = (v, digits) => (v === null || v === undefined || !isFinite(v)) ? null : Number(v.toFixed(digits));\nconst today = dayKey(now);\n\n// 3a. State history: exact time-weighted averages\n// Convert HA states into time segments [start, end) with a numeric value.\n// A state is valid until the next state change. Unknown / unavailable states become gaps.\nfunction toSegments(states) {\n    const points = (states || [])\n        .map(s => ({\n            t: toMs(s.last_changed ?? s.lc ?? s.lu ?? s.last_updated), // full or minimal response\n            v: parseFloat(s.state ?? s.s),\n        }))\n        .filter(p => isFinite(p.t))\n        .sort((a, b) => a.t - b.t);\n\n    const segments = [];\n    points.forEach((p, i) => {\n        const end = (i < points.length - 1) ? points[i + 1].t : now;\n        if (isFinite(p.v) && end > p.t) segments.push({ start: p.t, end: end, v: p.v });\n    });\n    return segments;\n}\n\n// Split segments on local midnight and accumulate time-weighted sums per day.\n// `include` decides which values take part in the average (e.g. skip COP = 0).\nfunction historyPerDay(segments, include = () => true) {\n    const days = {};\n    segments.forEach(seg => {\n        let start = seg.start;\n        while (start < seg.end) {\n            const end = Math.min(seg.end, nextDayStart(start));\n            const day = days[dayKey(start)] ??= { sum: 0, ms: 0, covered_ms: 0, above_ms: 0 };\n            const ms = end - start;\n            day.covered_ms += ms;\n            if (include(seg.v)) {\n                day.sum += seg.v * ms;\n                day.ms += ms;\n            }\n            if (seg.v > MIN_RUN_POWER_W) day.above_ms += ms;\n            start = end;\n        }\n    });\n    return days;\n}\n\n// 3b. Long-term statistics: hourly means\n// The COP mean of an hour includes the 0 values while the heat pump is off. Hours with\n// min > 0 ran the full hour and give a clean COP; only when a day has none of those,\n// hours with mean > 0 are used (slightly too low COP).\nfunction statisticsPerDay(rows) {\n    const days = {};\n    (rows || []).forEach(r => {\n        const mean = parseFloat(r.mean);\n        if (!isFinite(mean)) return;\n        const day = days[dayKey(toMs(r.start))] ??= { hours: [] };\n        day.hours.push({ mean: mean, min: parseFloat(r.min), max: parseFloat(r.max) });\n    });\n    return days;\n}\nconst meanOf = (values) => values.length ? values.reduce((s, v) => s + v, 0) / values.length : null;\n\n// 3c. Build one row per day\nconst H = {\n    outside: historyPerDay(toSegments(history[ENTITY.outside])),\n    water: historyPerDay(toSegments(history[ENTITY.water])),\n    power: historyPerDay(toSegments(history[ENTITY.power])),\n    cop: historyPerDay(toSegments(history[ENTITY.cop]), v => v > 0), // do not average the 0 values\n};\nconst S = {\n    outside: statisticsPerDay(statistics[ENTITY.outside]),\n    water: statisticsPerDay(statistics[ENTITY.water]),\n    power: statisticsPerDay(statistics[ENTITY.power]),\n    cop: statisticsPerDay(statistics[ENTITY.cop]),\n};\n\n// Exact row from the state history, or undefined when the day is not fully covered\nfunction rowFromHistory(key) {\n    const p = H.power[key], o = H.outside[key], w = H.water[key], c = H.cop[key];\n    if (!p || !o || p.covered_ms < MIN_DAY_COVERAGE * DAY_MS || o.covered_ms < MIN_DAY_COVERAGE * DAY_MS) return undefined;\n    const powerAvg = p.sum / p.ms; // hours without data are assumed to match the measured hours\n    return {\n        date: key,\n        source: \"history\",\n        used: powerAvg * 24 / 1000 >= MIN_DAY_ENERGY_KWH && p.above_ms > 0,\n        outside_temp_avg: round(o.sum / o.ms, 1),\n        water_target_temp_avg: w && w.ms > 0 ? round(w.sum / w.ms, 1) : null,\n        power_avg: round(powerAvg, 0),\n        energy: round(powerAvg * 24 / 1000, 2),\n        running_hours: round(p.above_ms / HOUR_MS, 1),\n        cop_avg: c && c.ms > 0 ? round(c.sum / c.ms, 2) : null,\n    };\n}\n\n// Row from the hourly statistics, or undefined when the day is not fully covered\nfunction rowFromStatistics(key) {\n    const p = S.power[key], o = S.outside[key], w = S.water[key], c = S.cop[key];\n    if (!p || !o || p.hours.length < MIN_DAY_COVERAGE * 24 || o.hours.length < MIN_DAY_COVERAGE * 24) return undefined;\n    const powerAvg = meanOf(p.hours.map(h => h.mean));\n    const copHours = c ? c.hours.filter(h => h.min > 0) : [];\n    const copValues = (copHours.length ? copHours : (c ? c.hours.filter(h => h.mean > 0) : [])).map(h => h.mean);\n    return {\n        date: key,\n        source: \"statistics\",\n        used: powerAvg * 24 / 1000 >= MIN_DAY_ENERGY_KWH && p.hours.some(h => h.max > MIN_RUN_POWER_W),\n        outside_temp_avg: round(meanOf(o.hours.map(h => h.mean)), 1),\n        water_target_temp_avg: w ? round(meanOf(w.hours.map(h => h.mean)), 1) : null,\n        power_avg: round(powerAvg, 0),\n        energy: round(powerAvg * 24 / 1000, 2),\n        running_hours: p.hours.filter(h => h.mean > MIN_RUN_POWER_W).length, // approximation\n        cop_avg: round(meanOf(copValues), 2),\n    };\n}\n\n// The exact state history wins; statistics fill in the days the recorder has purged\nconst keys = new Set([...Object.keys(H.power), ...Object.keys(S.power)]);\nkeys.delete(today); // incomplete day\nconst rows = [];\nlet skipped = 0;\n[...keys].sort().forEach(key => {\n    const row = rowFromHistory(key) ?? rowFromStatistics(key);\n    if (row && row.used) {\n        delete row.used;\n        rows.push(row);\n    } else {\n        skipped++; // not used or not enough data\n    }\n});\n\nif (rows.length === 0) {\n    log(this, \"No days found on which the heat pump has been used\", \"warn\");\n    node.status({ fill: \"red\", shape: \"ring\", text: \"No usable days\" });\n    return null;\n}\n\n// 4.  Relation to the outside temperature\n// Least squares fit y = slope * outside + intercept\nfunction fit(key) {\n    const pts = rows.filter(r => r[key] !== null && r.outside_temp_avg !== null);\n    const n = pts.length;\n    if (n < 2) return null;\n    const mx = pts.reduce((s, r) => s + r.outside_temp_avg, 0) / n;\n    const my = pts.reduce((s, r) => s + r[key], 0) / n;\n    const sxx = pts.reduce((s, r) => s + (r.outside_temp_avg - mx) ** 2, 0);\n    if (sxx === 0) return null;\n    const sxy = pts.reduce((s, r) => s + (r.outside_temp_avg - mx) * (r[key] - my), 0);\n    const slope = sxy / sxx;\n    return { slope: round(slope, 3), intercept: round(my - slope * mx, 2), days: n };\n}\n\nconst average = (list, key, digits = 2) => round(meanOf(list.map(r => r[key]).filter(v => v !== null)), digits);\n\n// Averages per whole °C outside temperature\nconst bins = {};\nrows.forEach(r => (bins[Math.round(r.outside_temp_avg)] ??= []).push(r));\nconst curve = Object.keys(bins).map(Number).sort((a, b) => a - b).map(t => ({\n    outside_temp: t,\n    days: bins[t].length,\n    water_target_temp: average(bins[t], \"water_target_temp_avg\", 1),\n    power: average(bins[t], \"power_avg\", 0),\n    energy: average(bins[t], \"energy\", 2),\n    cop: average(bins[t], \"cop_avg\", 2),\n}));\n\n// 5.  Output\nconst summary = {\n    updated: new Date(now).toISOString(),\n    first_day: rows[0].date,\n    last_day: rows[rows.length - 1].date,\n    days_used: rows.length,\n    days_from_history: rows.filter(r => r.source === \"history\").length,\n    days_from_statistics: rows.filter(r => r.source === \"statistics\").length,\n    days_skipped: skipped,\n    averages: {\n        outside_temp_avg: average(rows, \"outside_temp_avg\", 1),\n        water_target_temp_avg: average(rows, \"water_target_temp_avg\", 1),\n        power_avg: average(rows, \"power_avg\", 0),\n        energy: average(rows, \"energy\", 2),\n        cop_avg: average(rows, \"cop_avg\", 2),\n    },\n    // per °C outside temperature: value = slope * outside_temp + intercept\n    fit: {\n        water_target_temp: fit(\"water_target_temp_avg\"),\n        power: fit(\"power_avg\"),\n        cop: fit(\"cop_avg\"),\n    },\n    curve: curve,\n};\n\n// Full day list stays in Node-RED, Home Assistant gets the (small) summary\nglobal.set(\"heat_pump_history\", { ...summary, days: rows });\nmsg.heat_pump_history = summary;\ndelete msg.history; // raw data is large, do not pass it on\ndelete msg.statistics;\n\nlog(this, `${rows.length} days used (${summary.first_day} .. ${summary.last_day}), ${skipped} skipped`);\nnode.status({ fill: \"green\", shape: \"dot\", text: `${rows.length} days | COP ${summary.averages.cop_avg ?? \"-\"}` });\n\nreturn msg;\n",
-        "outputs": 1,
-        "timeout": 0,
-        "noerr": 0,
-        "initialize": "",
-        "finalize": "",
-        "libs": [],
-        "x": 590,
-        "y": 120,
-        "wires": [
-            [
-                "3399b6f223767123",
-                "0a9b923c09d69e99"
-            ]
-        ],
-        "id": "12470bc15a42b996",
-        "z": "637c08aefe059a43",
-        "g": "58f6ac0df679b818"
     },
     {
         "type": "ha-api",
@@ -111,11 +206,11 @@
                 "valueType": "results"
             }
         ],
-        "x": 330,
-        "y": 160,
+        "x": 760,
+        "y": 140,
         "wires": [
             [
-                "12470bc15a42b996"
+                "087996a943241dfe"
             ]
         ],
         "id": "97aee2703b8a6177",
@@ -142,8 +237,8 @@
                 "valueType": "results"
             }
         ],
-        "x": 310,
-        "y": 120,
+        "x": 580,
+        "y": 140,
         "wires": [
             [
                 "97aee2703b8a6177"
@@ -154,64 +249,581 @@
         "g": "dc8d460d15034b92"
     },
     {
-        "type": "inject",
-        "name": "Daily",
-        "props": [
-            {
-                "p": "payload"
-            },
-            {
-                "p": "topic",
-                "vt": "str"
-            }
+        "type": "link in",
+        "name": "Trigger in",
+        "links": [
+            "2903e1e3cf6ccd86"
         ],
-        "repeat": "",
-        "crontab": "05 00 * * *",
-        "once": true,
-        "onceDelay": "10",
-        "topic": "",
-        "payload": "",
-        "payloadType": "date",
-        "x": 100,
-        "y": 120,
+        "x": 485,
+        "y": 140,
         "wires": [
             [
                 "c8c1aecf46a778eb"
             ]
         ],
-        "id": "c9c2b3f91b34f94b",
+        "id": "8ee6a81cdcada53e",
+        "z": "637c08aefe059a43",
+        "g": "dc8d460d15034b92"
+    },
+    {
+        "type": "link out",
+        "name": "Trigger out",
+        "mode": "link",
+        "links": [
+            "8ee6a81cdcada53e"
+        ],
+        "x": 395,
+        "y": 140,
+        "wires": [],
+        "id": "2903e1e3cf6ccd86",
         "z": "637c08aefe059a43",
         "g": "92487d0d197600bf"
     },
     {
-        "type": "inject",
-        "name": "Test",
-        "props": [
-            {
-                "p": "payload"
-            },
-            {
-                "p": "topic",
-                "vt": "str"
-            }
+        "type": "group",
+        "name": "Daily values",
+        "style": {
+            "label": true
+        },
+        "nodes": [
+            "0ed42ddd5d47fa15",
+            "53dbb9c4387212d5",
+            "03dbbd0d4ab844a2",
+            "a9920d976c6e531f",
+            "eac1079bbedb4329"
         ],
-        "repeat": "",
-        "crontab": "",
-        "once": false,
-        "onceDelay": "10",
-        "topic": "",
-        "payload": "",
-        "payloadType": "date",
-        "x": 100,
-        "y": 160,
+        "x": 55,
+        "y": 219,
+        "w": 710,
+        "h": 72,
+        "id": "19ef0ecb0f0a3214",
+        "z": "637c08aefe059a43"
+    },
+    {
+        "type": "function",
+        "name": "Time segments",
+        "func": "// State history -> time segments per sensor: [{ start, end, v }]\n// A state is valid until the next state change. Unknown / unavailable states become gaps.\nconst now = Date.now();\nconst entity = msg.settings.entity;\nconst history = msg.history || {};\nconst toMs = (t) => typeof t === \"number\" ? (t < 1e12 ? t * 1000 : t) : new Date(t).getTime();\n\nfunction toSegments(states) {\n    const points = (states || [])\n        .map(s => ({ t: toMs(s.last_changed ?? s.lc ?? s.lu ?? s.last_updated), v: parseFloat(s.state ?? s.s) }))\n        .filter(p => isFinite(p.t))\n        .sort((a, b) => a.t - b.t);\n\n    const segments = [];\n    points.forEach((p, i) => {\n        const end = (i < points.length - 1) ? points[i + 1].t : now;\n        if (isFinite(p.v) && end > p.t) segments.push({ start: p.t, end: end, v: p.v });\n    });\n    return segments;\n}\n\nmsg.segments = {};\nfor (const key in entity) msg.segments[key] = toSegments(history[entity[key]]);\n\ndelete msg.history; // large, not needed anymore\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 230,
+        "y": 260,
         "wires": [
             [
-                "c8c1aecf46a778eb"
+                "53dbb9c4387212d5"
             ]
         ],
-        "id": "e33f0fe238eb8089",
+        "id": "0ed42ddd5d47fa15",
         "z": "637c08aefe059a43",
-        "g": "92487d0d197600bf"
+        "g": "19ef0ecb0f0a3214"
+    },
+    {
+        "type": "function",
+        "name": "History per day",
+        "func": "const DAY_MS = 86_400_000;\nconst HOUR_MS = 3_600_000;\nconst pad = (v) => String(v).padStart(2, \"0\");\nconst dayKey = (t) => { const d = new Date(t); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };\nconst round = (v, digits) => (v === undefined || !isFinite(v)) ? undefined : Number(v.toFixed(digits));\nconst mean = (values) => values.length ? values.reduce((a, b) => a + b, 0) / values.length : undefined;\nconst today = dayKey(Date.now()); // incomplete, never used\n\n// Time-weighted average per local day, from the time segments.\n// include() selects the values that take part in the average.\nconst s = msg.settings;\nfunction perDay(segments, include = () => true) {\n    const days = {};\n    segments.forEach(seg => {\n        let start = seg.start;\n        while (start < seg.end) {\n            const d = new Date(start);\n            const end = Math.min(seg.end, new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1).getTime());\n            const day = days[dayKey(start)] ??= { sum: 0, ms: 0, covered_ms: 0, running_ms: 0 };\n            day.covered_ms += end - start;\n            if (include(seg.v)) { day.sum += seg.v * (end - start); day.ms += end - start; }\n            if (seg.v > s.min_run_power) day.running_ms += end - start;\n            start = end;\n        }\n    });\n    return days;\n}\n\nconst outside = perDay(msg.segments.outside);\nconst water = perDay(msg.segments.water);\nconst power = perDay(msg.segments.power);\nconst cop = perDay(msg.segments.cop, v => v > 0); // do not average the 0 values\n\nconst avg = (d) => d && d.ms > 0 ? d.sum / d.ms : undefined;\nconst covered = (d) => d && d.covered_ms >= s.min_day_coverage * DAY_MS;\n\nmsg.days_history = {};\nfor (const key in power) {\n    if (key === today || !covered(power[key]) || !covered(outside[key])) continue;\n    const powerAvg = avg(power[key]); // hours without data count as the measured hours\n    msg.days_history[key] = {\n        source: \"history\",\n        outside_temp_avg: round(avg(outside[key]), 1),\n        water_target_temp_avg: round(avg(water[key]), 1),\n        power_avg: round(powerAvg, 0),\n        energy: round(powerAvg * 24 / 1000, 2),\n        running_hours: round(power[key].running_ms / HOUR_MS, 1),\n        cop_avg: round(avg(cop[key]), 2),\n        ran: power[key].running_ms > 0,\n    };\n}\n\ndelete msg.segments;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 420,
+        "y": 260,
+        "wires": [
+            [
+                "03dbbd0d4ab844a2"
+            ]
+        ],
+        "id": "53dbb9c4387212d5",
+        "z": "637c08aefe059a43",
+        "g": "19ef0ecb0f0a3214"
+    },
+    {
+        "type": "function",
+        "name": "Statistics per day",
+        "func": "const DAY_MS = 86_400_000;\nconst HOUR_MS = 3_600_000;\nconst pad = (v) => String(v).padStart(2, \"0\");\nconst dayKey = (t) => { const d = new Date(t); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };\nconst round = (v, digits) => (v === undefined || !isFinite(v)) ? undefined : Number(v.toFixed(digits));\nconst mean = (values) => values.length ? values.reduce((a, b) => a + b, 0) / values.length : undefined;\nconst today = dayKey(Date.now()); // incomplete, never used\n\n// Hourly long-term statistics -> per local day. Fills in the days the recorder has purged.\n// The hourly COP mean includes the 0 values while the heat pump is off. Hours with min > 0\n// ran the full hour and give a clean COP; only when a day has none, hours with mean > 0 are used.\nconst s = msg.settings;\nconst statistics = msg.statistics || {};\nfunction hoursPerDay(rows) {\n    const days = {};\n    (rows || []).forEach(r => {\n        const h = { mean: parseFloat(r.mean), min: parseFloat(r.min), max: parseFloat(r.max) };\n        const t = typeof r.start === \"number\" ? r.start : new Date(r.start).getTime();\n        if (isFinite(h.mean)) (days[dayKey(t)] ??= []).push(h);\n    });\n    return days;\n}\n\nconst outside = hoursPerDay(statistics[s.entity.outside]);\nconst water = hoursPerDay(statistics[s.entity.water]);\nconst power = hoursPerDay(statistics[s.entity.power]);\nconst cop = hoursPerDay(statistics[s.entity.cop]);\n\nconst enough = (hours) => hours && hours.length >= s.min_day_coverage * 24;\n\nmsg.days_statistics = {};\nfor (const key in power) {\n    if (key === today || !enough(power[key]) || !enough(outside[key])) continue;\n    const p = power[key];\n    const c = cop[key] || [];\n    const copHours = c.some(h => h.min > 0) ? c.filter(h => h.min > 0) : c.filter(h => h.mean > 0);\n    const powerAvg = mean(p.map(h => h.mean));\n    msg.days_statistics[key] = {\n        source: \"statistics\",\n        outside_temp_avg: round(mean(outside[key].map(h => h.mean)), 1),\n        water_target_temp_avg: round(mean((water[key] || []).map(h => h.mean)), 1),\n        power_avg: round(powerAvg, 0),\n        energy: round(powerAvg * 24 / 1000, 2),\n        running_hours: p.filter(h => h.mean > s.min_run_power).length, // approximation\n        cop_avg: round(mean(copHours.map(h => h.mean)), 2),\n        ran: p.some(h => h.max > s.min_run_power),\n    };\n}\n\ndelete msg.statistics;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 620,
+        "y": 260,
+        "wires": [
+            [
+                "eac1079bbedb4329"
+            ]
+        ],
+        "id": "03dbbd0d4ab844a2",
+        "z": "637c08aefe059a43",
+        "g": "19ef0ecb0f0a3214"
+    },
+    {
+        "type": "link in",
+        "name": "Get all history in",
+        "links": [
+            "087996a943241dfe"
+        ],
+        "x": 85,
+        "y": 260,
+        "wires": [
+            [
+                "0ed42ddd5d47fa15"
+            ]
+        ],
+        "id": "a9920d976c6e531f",
+        "z": "637c08aefe059a43",
+        "g": "19ef0ecb0f0a3214"
+    },
+    {
+        "type": "link out",
+        "name": "Get all history out",
+        "mode": "link",
+        "links": [
+            "a9920d976c6e531f"
+        ],
+        "x": 875,
+        "y": 140,
+        "wires": [],
+        "id": "087996a943241dfe",
+        "z": "637c08aefe059a43",
+        "g": "dc8d460d15034b92"
+    },
+    {
+        "type": "group",
+        "name": "Select days",
+        "style": {
+            "label": true
+        },
+        "nodes": [
+            "7cfc8e8e8d031efe",
+            "e5e703a0ba189d91",
+            "e8e12c22f920d1bd",
+            "e3cb2b7f3ee0bcc2",
+            "f3a5eee7b9ea324b",
+            "6637cf833b7489b1"
+        ],
+        "x": 55,
+        "y": 319,
+        "w": 886,
+        "h": 132,
+        "id": "dd498370e434231c",
+        "z": "637c08aefe059a43"
+    },
+    {
+        "type": "change",
+        "name": "History wins over statistics",
+        "rules": [
+            {
+                "t": "set",
+                "p": "days",
+                "pt": "msg",
+                "to": "[\n    $each($merge([days_statistics, days_history]), function($day, $date) {\n        $merge([{\"date\": $date}, $day])\n    })\n]^(date)",
+                "tot": "jsonata"
+            },
+            {
+                "t": "delete",
+                "p": "days_history",
+                "pt": "msg"
+            },
+            {
+                "t": "delete",
+                "p": "days_statistics",
+                "pt": "msg"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 270,
+        "y": 380,
+        "wires": [
+            [
+                "e5e703a0ba189d91"
+            ]
+        ],
+        "id": "7cfc8e8e8d031efe",
+        "z": "637c08aefe059a43",
+        "g": "dd498370e434231c"
+    },
+    {
+        "type": "change",
+        "name": "Used days only",
+        "rules": [
+            {
+                "t": "set",
+                "p": "days_skipped",
+                "pt": "msg",
+                "to": "$count(days[$not(energy >= $$.settings.min_day_energy and ran)])",
+                "tot": "jsonata"
+            },
+            {
+                "t": "set",
+                "p": "days",
+                "pt": "msg",
+                "to": "[days[energy >= $$.settings.min_day_energy and ran]]",
+                "tot": "jsonata"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 490,
+        "y": 380,
+        "wires": [
+            [
+                "e8e12c22f920d1bd"
+            ]
+        ],
+        "id": "e5e703a0ba189d91",
+        "z": "637c08aefe059a43",
+        "g": "dd498370e434231c"
+    },
+    {
+        "type": "switch",
+        "name": "Any days?",
+        "property": "$count(days) > 0",
+        "propertyType": "jsonata",
+        "rules": [
+            {
+                "t": "true"
+            },
+            {
+                "t": "else"
+            }
+        ],
+        "checkall": "false",
+        "repair": false,
+        "outputs": 2,
+        "x": 660,
+        "y": 380,
+        "wires": [
+            [
+                "6637cf833b7489b1"
+            ],
+            [
+                "e3cb2b7f3ee0bcc2"
+            ]
+        ],
+        "id": "e8e12c22f920d1bd",
+        "z": "637c08aefe059a43",
+        "g": "dd498370e434231c"
+    },
+    {
+        "type": "function",
+        "name": "No usable days",
+        "func": "// logger, usage: log(this, \"\");\nconst log = global.get('logger');\n\nlog(this, \"No days found on which the heat pump has been used\", \"warn\");\nnode.status({ fill: \"red\", shape: \"ring\", text: \"No usable days\" });\nreturn null;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 830,
+        "y": 420,
+        "wires": [
+            []
+        ],
+        "id": "e3cb2b7f3ee0bcc2",
+        "z": "637c08aefe059a43",
+        "g": "dd498370e434231c"
+    },
+    {
+        "type": "link in",
+        "name": "Daily values in",
+        "links": [
+            "eac1079bbedb4329"
+        ],
+        "x": 85,
+        "y": 380,
+        "wires": [
+            [
+                "7cfc8e8e8d031efe"
+            ]
+        ],
+        "id": "f3a5eee7b9ea324b",
+        "z": "637c08aefe059a43",
+        "g": "dd498370e434231c"
+    },
+    {
+        "type": "link out",
+        "name": "Daily values out",
+        "mode": "link",
+        "links": [
+            "f3a5eee7b9ea324b"
+        ],
+        "x": 735,
+        "y": 260,
+        "wires": [],
+        "id": "eac1079bbedb4329",
+        "z": "637c08aefe059a43",
+        "g": "19ef0ecb0f0a3214"
+    },
+    {
+        "type": "group",
+        "name": "Relation to outside temperature",
+        "style": {
+            "label": true
+        },
+        "nodes": [
+            "eda1c449fa770d3c",
+            "ff25fb99c60f3710",
+            "c6412c0e2916ac34",
+            "bae7c0358a684231",
+            "0c6c3e8105d07291"
+        ],
+        "x": 55,
+        "y": 459,
+        "w": 630,
+        "h": 72,
+        "id": "6564ed52f508b2ef",
+        "z": "637c08aefe059a43"
+    },
+    {
+        "type": "function",
+        "name": "Fit lines",
+        "func": "// Least squares fit per value: value = slope * outside_temp + intercept\nconst round = (v, digits) => Number(v.toFixed(digits));\n\nfunction fit(key) {\n    const pts = msg.days.filter(d => d[key] !== undefined && d.outside_temp_avg !== undefined);\n    const n = pts.length;\n    if (n < 2) return undefined;\n    const mx = pts.reduce((s, d) => s + d.outside_temp_avg, 0) / n;\n    const my = pts.reduce((s, d) => s + d[key], 0) / n;\n    const sxx = pts.reduce((s, d) => s + (d.outside_temp_avg - mx) ** 2, 0);\n    const sxy = pts.reduce((s, d) => s + (d.outside_temp_avg - mx) * (d[key] - my), 0);\n    if (sxx === 0) return undefined;\n    return { slope: round(sxy / sxx, 3), intercept: round(my - sxy / sxx * mx, 2), days: n };\n}\n\nmsg.fit = {\n    water_target_temp: fit(\"water_target_temp_avg\"),\n    power: fit(\"power_avg\"),\n    cop: fit(\"cop_avg\"),\n};\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 210,
+        "y": 500,
+        "wires": [
+            [
+                "ff25fb99c60f3710"
+            ]
+        ],
+        "id": "eda1c449fa770d3c",
+        "z": "637c08aefe059a43",
+        "g": "6564ed52f508b2ef"
+    },
+    {
+        "type": "change",
+        "name": "Averages",
+        "rules": [
+            {
+                "t": "set",
+                "p": "averages.outside_temp_avg",
+                "pt": "msg",
+                "to": "$round($average(days.outside_temp_avg), 1)",
+                "tot": "jsonata"
+            },
+            {
+                "t": "set",
+                "p": "averages.water_target_temp_avg",
+                "pt": "msg",
+                "to": "$round($average(days.water_target_temp_avg), 1)",
+                "tot": "jsonata"
+            },
+            {
+                "t": "set",
+                "p": "averages.power_avg",
+                "pt": "msg",
+                "to": "$round($average(days.power_avg), 0)",
+                "tot": "jsonata"
+            },
+            {
+                "t": "set",
+                "p": "averages.energy",
+                "pt": "msg",
+                "to": "$round($average(days.energy), 2)",
+                "tot": "jsonata"
+            },
+            {
+                "t": "set",
+                "p": "averages.cop_avg",
+                "pt": "msg",
+                "to": "$round($average(days.cop_avg), 2)",
+                "tot": "jsonata"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 370,
+        "y": 500,
+        "wires": [
+            [
+                "c6412c0e2916ac34"
+            ]
+        ],
+        "id": "ff25fb99c60f3710",
+        "z": "637c08aefe059a43",
+        "g": "6564ed52f508b2ef"
+    },
+    {
+        "type": "change",
+        "name": "Curve per °C",
+        "rules": [
+            {
+                "t": "set",
+                "p": "curve",
+                "pt": "msg",
+                "to": "[\n    $each(days{$string($round(outside_temp_avg)): [$]}, function($days, $temp) {{\n        \"outside_temp\": $number($temp),\n        \"days\": $count($days),\n        \"water_target_temp\": $round($average($days.water_target_temp_avg), 1),\n        \"power\": $round($average($days.power_avg), 0),\n        \"energy\": $round($average($days.energy), 2),\n        \"cop\": $round($average($days.cop_avg), 2)\n    }})\n]^(outside_temp)",
+                "tot": "jsonata"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 530,
+        "y": 500,
+        "wires": [
+            [
+                "0c6c3e8105d07291"
+            ]
+        ],
+        "id": "c6412c0e2916ac34",
+        "z": "637c08aefe059a43",
+        "g": "6564ed52f508b2ef"
+    },
+    {
+        "type": "link in",
+        "name": "Select days in",
+        "links": [
+            "6637cf833b7489b1"
+        ],
+        "x": 85,
+        "y": 500,
+        "wires": [
+            [
+                "eda1c449fa770d3c"
+            ]
+        ],
+        "id": "bae7c0358a684231",
+        "z": "637c08aefe059a43",
+        "g": "6564ed52f508b2ef"
+    },
+    {
+        "type": "link out",
+        "name": "Select days out",
+        "mode": "link",
+        "links": [
+            "bae7c0358a684231"
+        ],
+        "x": 785,
+        "y": 360,
+        "wires": [],
+        "id": "6637cf833b7489b1",
+        "z": "637c08aefe059a43",
+        "g": "dd498370e434231c"
+    },
+    {
+        "type": "group",
+        "name": "Output",
+        "style": {
+            "label": true
+        },
+        "nodes": [
+            "ac75e090554b22a3",
+            "3411628b3fc3b2d9",
+            "f6128cc500d0d01d",
+            "4a6054a95449e921",
+            "57313b6f7c389e25"
+        ],
+        "x": 55,
+        "y": 559,
+        "w": 628,
+        "h": 112,
+        "id": "dda90ecf8352d815",
+        "z": "637c08aefe059a43"
+    },
+    {
+        "type": "change",
+        "name": "Summary",
+        "rules": [
+            {
+                "t": "set",
+                "p": "heat_pump_history",
+                "pt": "msg",
+                "to": "{\n    \"updated\": $now(),\n    \"first_day\": days[0].date,\n    \"last_day\": days[-1].date,\n    \"days_used\": $count(days),\n    \"days_from_history\": $count(days[source = \"history\"]),\n    \"days_from_statistics\": $count(days[source = \"statistics\"]),\n    \"days_skipped\": days_skipped,\n    \"averages\": averages,\n    \"fit\": fit,\n    \"curve\": curve\n}",
+                "tot": "jsonata"
+            },
+            {
+                "t": "set",
+                "p": "heat_pump_history",
+                "pt": "global",
+                "to": "$merge([heat_pump_history, {\"days\": days}])",
+                "tot": "jsonata"
+            },
+            {
+                "t": "delete",
+                "p": "days",
+                "pt": "msg"
+            },
+            {
+                "t": "delete",
+                "p": "days_skipped",
+                "pt": "msg"
+            },
+            {
+                "t": "delete",
+                "p": "averages",
+                "pt": "msg"
+            },
+            {
+                "t": "delete",
+                "p": "fit",
+                "pt": "msg"
+            },
+            {
+                "t": "delete",
+                "p": "curve",
+                "pt": "msg"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 210,
+        "y": 620,
+        "wires": [
+            [
+                "3411628b3fc3b2d9"
+            ]
+        ],
+        "id": "ac75e090554b22a3",
+        "z": "637c08aefe059a43",
+        "g": "dda90ecf8352d815"
+    },
+    {
+        "type": "function",
+        "name": "Status",
+        "func": "// Status\nconst h = msg.heat_pump_history;\nnode.status({ fill: \"green\", shape: \"dot\", text: `${h.days_used} days | COP ${h.averages.cop_avg ?? \"-\"}` });\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 370,
+        "y": 620,
+        "wires": [
+            [
+                "f6128cc500d0d01d",
+                "4a6054a95449e921"
+            ]
+        ],
+        "id": "3411628b3fc3b2d9",
+        "z": "637c08aefe059a43",
+        "g": "dda90ecf8352d815"
     },
     {
         "type": "ha-fire-event",
@@ -221,14 +833,14 @@
         "event": "heat_pump_history",
         "data": "msg.heat_pump_history",
         "dataType": "jsonata",
-        "x": 740,
-        "y": 120,
+        "x": 560,
+        "y": 600,
         "wires": [
             []
         ],
-        "id": "3399b6f223767123",
+        "id": "f6128cc500d0d01d",
         "z": "637c08aefe059a43",
-        "g": "58f6ac0df679b818"
+        "g": "dda90ecf8352d815"
     },
     {
         "type": "debug",
@@ -241,12 +853,43 @@
         "targetType": "msg",
         "statusVal": "",
         "statusType": "auto",
-        "x": 740,
-        "y": 200,
+        "x": 560,
+        "y": 640,
         "wires": [],
-        "id": "0a9b923c09d69e99",
+        "id": "4a6054a95449e921",
         "z": "637c08aefe059a43",
-        "g": "58f6ac0df679b818"
+        "g": "dda90ecf8352d815"
+    },
+    {
+        "type": "link in",
+        "name": "Relation to outside temperature in",
+        "links": [
+            "0c6c3e8105d07291"
+        ],
+        "x": 85,
+        "y": 620,
+        "wires": [
+            [
+                "ac75e090554b22a3"
+            ]
+        ],
+        "id": "57313b6f7c389e25",
+        "z": "637c08aefe059a43",
+        "g": "dda90ecf8352d815"
+    },
+    {
+        "type": "link out",
+        "name": "Relation to outside temperature out",
+        "mode": "link",
+        "links": [
+            "57313b6f7c389e25"
+        ],
+        "x": 655,
+        "y": 500,
+        "wires": [],
+        "id": "0c6c3e8105d07291",
+        "z": "637c08aefe059a43",
+        "g": "6564ed52f508b2ef"
     },
     {
         "type": "group",
@@ -259,10 +902,10 @@
             "53bf4467b097f752",
             "d6062b0d705baf51"
         ],
-        "x": 14,
-        "y": 279,
-        "w": 252,
-        "h": 82,
+        "x": 19,
+        "y": 740,
+        "w": 290,
+        "h": 72,
         "id": "aad8039beb2bfec9",
         "z": "637c08aefe059a43"
     },
@@ -278,7 +921,7 @@
         "statusVal": "",
         "statusType": "auto",
         "x": 230,
-        "y": 320,
+        "y": 781,
         "wires": [],
         "id": "ccd18d3a2ae5fec0",
         "z": "637c08aefe059a43",
@@ -295,7 +938,7 @@
         "finalize": "",
         "libs": [],
         "x": 150,
-        "y": 320,
+        "y": 781,
         "wires": [
             [
                 "ccd18d3a2ae5fec0"
@@ -311,7 +954,7 @@
         "scope": null,
         "uncaught": false,
         "x": 65,
-        "y": 320,
+        "y": 781,
         "wires": [
             [
                 "53bf4467b097f752"
@@ -340,7 +983,7 @@
         "type": "global-config",
         "env": [],
         "modules": {
-            "node-red-contrib-home-assistant-websocket": "0.80.3"
+            "node-red-contrib-home-assistant-websocket": "0.81.0"
         }
     }
 ]
