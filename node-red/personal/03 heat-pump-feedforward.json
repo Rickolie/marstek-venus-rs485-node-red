@@ -10,7 +10,7 @@
     {
         "type": "comment",
         "name": "Heat Pump Feedforward (readme)",
-        "info": "# Heat pump feedforward\n\nCalculates the feedforward water temperature from the current outside temperature:\n`water_temp = slope * outside_temp + intercept`, limited to the min / max water temperature.\n\n## Heating curve\nSelect with `input_select.heat_pump_feedforward_source`:\n- **Manual**: `input_number.heat_pump_feedforward_manual_slope` / `_manual_intercept`\n- **History**: the curve calculated by the `Heat Pump History` flow. Falls back to Manual\n  as long as the history has not been calculated.\n\n## Simple day schedule (mild weather)\nBelow 24 °C water temperature the curve is replaced by a simple schedule, effective when\nthe 24h average outside temperature >= `input_number.heat_pump_feedforward_simple_outside_temperature`:\n- heat at 24 °C from `input_datetime.heat_pump_feedforward_simple_start_time` (default midnight)\n- stop for the rest of the day once `sensor.heat_pump_inside_temperature`\n  >= `input_number.heat_pump_feedforward_simple_stop_inside_temperature`\n- `heating` is false while stopped: switch the heat pump off\n\n## Output\n- `global.heat_pump_feedforward` for use in other flows\n- Home Assistant event `heat_pump_feedforward` -> `sensor.heat_pump_feedforward_water_temperature`\n  and `binary_sensor.heat_pump_feedforward_heating`",
+        "info": "# Heat pump feedforward\n\nCalculates the feedforward water temperature, every 5 minutes and on every input change.\nEach step is a group, from left to right:\n\n1. **Input**: all settings from Home Assistant\n2. **Outside temperature**: `input_select.heat_pump_feedforward_outside_source`\n   - *Current*: heat pump outside temperature, 24h average for the simple schedule\n   - *Forecast*: Met.no hourly forecast (`weather.forecast_home`, fetched every 30 minutes)\n     - heating curve: average over `window` hours starting `lead time` hours ahead, mixed with the current temperature by `weight`\n     - simple schedule: average over the next `simple forecast hours`\n     - bias correction (optional): shift the forecast by (measured - forecast) right now\n     - no forecast of the last 3 hours: use Current\n3. **Heating curve**: `water = slope * outside + intercept`, limited to min / max.\n   `input_select.heat_pump_feedforward_source`: *Manual* or *History* (from the Heat Pump History flow)\n4. **Simple day schedule**: when the average outside temperature >= the set value:\n   heat at 24 °C water from the start time until the inside temperature is reached, then off for the day\n5. **Output**: `global.heat_pump_feedforward` and event `heat_pump_feedforward`\n   -> `sensor.heat_pump_feedforward_water_temperature`, `binary_sensor.heat_pump_feedforward_heating`\n\n`heating` false: switch the heat pump off.",
         "x": 160,
         "y": 40,
         "wires": [],
@@ -28,10 +28,10 @@
             "736a2fb822439a46",
             "30bacea97f98e963"
         ],
-        "x": 14,
+        "x": 11,
         "y": 79,
-        "w": 312,
-        "h": 122,
+        "w": 330,
+        "h": 112,
         "id": "7b5ee698cac28b91",
         "z": "30c1cadb3f5445db"
     },
@@ -42,64 +42,52 @@
             "label": true
         },
         "nodes": [
+            "2e7838b79a6c69ac",
             "128e972ed7ba3ed4",
             "2135a6c2eb7371e7",
             "851bbc4f893f44f0",
-            "c0a55e3b85cafd7e",
-            "6c85a2d0f94b9418",
             "d3aa92a7f2f49ced",
             "6b0111110de2dc26",
             "19bffb623a389680",
             "b022adda0d5f0cee",
             "accc03992ae42663",
+            "66fb7a17d516d5b2",
+            "76f4920518273d52",
+            "a61c7bd01a2d6b25",
+            "a9671ded4d73064d",
+            "2dd1ebf803fee5fa",
+            "5c7cb34884168591",
+            "c0a55e3b85cafd7e",
+            "6c85a2d0f94b9418",
             "0c86fb739462581f"
         ],
-        "x": 354,
+        "x": 329,
         "y": 79,
-        "w": 232,
-        "h": 482,
+        "w": 302,
+        "h": 752,
         "id": "9326d2530a306320",
         "z": "30c1cadb3f5445db"
     },
     {
-        "type": "group",
-        "name": "Calculate",
-        "style": {
-            "label": true
-        },
-        "nodes": [
-            "1af7426268166ba5",
-            "200bc9ff4177f8a6",
-            "c8cdccbeff884117"
-        ],
-        "x": 614,
-        "y": 79,
-        "w": 352,
-        "h": 162,
-        "id": "d51727478b63d37b",
-        "z": "30c1cadb3f5445db"
-    },
-    {
         "type": "function",
-        "name": "Feedforward",
-        "func": "// logger, usage: log(this, \"\");\nconst log = global.get('logger');\n\n// 1.  Settings\n// Below this water temperature the heating curve is replaced by the simple day schedule:\n// heat at this temperature from the start time until the inside temperature is reached.\nconst SIMPLE_WATER_TEMP = 24; // °C\n\n// 2.  Input\nconst ff = msg.feedforward || {};\nconst outside = parseFloat(ff.outside_temp);\nconst outsideAvg = parseFloat(ff.outside_temp_avg);\nconst inside = parseFloat(ff.inside_temp);\nconst minWater = parseFloat(ff.min_water_temp);\nconst maxWater = parseFloat(ff.max_water_temp);\nconst simpleFrom = parseFloat(ff.simple_outside_temp);\nconst simpleStop = parseFloat(ff.simple_stop_inside_temp);\nconst history = global.get(\"heat_pump_history\");\n\nif (!isFinite(outside)) {\n    log(this, \"Outside temperature unavailable\", \"warn\");\n    node.status({ fill: \"red\", shape: \"ring\", text: \"No outside temperature\" });\n    return null;\n}\n\nconst round = (v, digits) => (v === null || v === undefined || !isFinite(v)) ? null : Number(v.toFixed(digits));\nconst atOutside = (line) => line ? line.slope * outside + line.intercept : null;\n\n// 3.  Select the heating curve: water = slope * outside + intercept\nconst manual = { slope: parseFloat(ff.manual_slope), intercept: parseFloat(ff.manual_intercept) };\nconst historyFit = history?.fit?.water_target_temp;\n\nlet source = ff.source;\nlet curve = manual;\nif (source === \"History\") {\n    if (historyFit) {\n        curve = historyFit;\n    } else {\n        // History not calculated yet (e.g. just after a restart), fall back to the manual curve\n        log(this, \"No history curve available, using manual values\", \"warn\");\n        source = \"Manual (history unavailable)\";\n    }\n}\n\nif (!isFinite(curve.slope) || !isFinite(curve.intercept)) {\n    log(this, \"Heating curve incomplete\", \"warn\");\n    node.status({ fill: \"red\", shape: \"ring\", text: \"No heating curve\" });\n    return null;\n}\n\n// 4a. Curve: feedforward water temperature, limited to min / max\nlet mode = \"Curve\";\nlet heating = true;\nlet water = atOutside(curve);\nif (isFinite(minWater)) water = Math.max(water, minWater);\nif (isFinite(maxWater)) water = Math.min(water, maxWater);\n\n// 4b. Simple day schedule, effective from the set average outside temperature\nif (isFinite(outsideAvg) && isFinite(simpleFrom) && outsideAvg >= simpleFrom) {\n    mode = \"Simple\";\n    water = SIMPLE_WATER_TEMP;\n\n    // The heating day starts at the start time, before that time the previous day still counts\n    const [h, m] = String(ff.simple_start_time || \"00:00\").split(\":\").map(Number);\n    const now = new Date();\n    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h || 0, m || 0);\n    if (now < start) start.setDate(start.getDate() - 1);\n    const heatingDay = start.toISOString();\n\n    // Stop for the rest of the heating day once the inside temperature is reached\n    if (flow.get(\"simple_stopped_day\") !== heatingDay) {\n        if (!isFinite(inside)) {\n            log(this, \"Inside temperature unavailable, keep heating\", \"warn\");\n        } else if (isFinite(simpleStop) && inside >= simpleStop) {\n            log(this, `Inside temperature ${inside} °C reached, stop heating for today`);\n            flow.set(\"simple_stopped_day\", heatingDay);\n        }\n    }\n    heating = flow.get(\"simple_stopped_day\") !== heatingDay;\n}\n\n// 5.  Output\nmsg.feedforward = {\n    ...ff,\n    outside_temp: outside,\n    outside_temp_avg: round(outsideAvg, 1),\n    inside_temp: round(inside, 1),\n    source: source,\n    slope: curve.slope,\n    intercept: curve.intercept,\n    mode: mode,\n    heating: heating, // false: heat pump off for the rest of the heating day\n    water_temp: round(water, 1),\n    // expected values from the history at this outside temperature, for information\n    expected_power: round(atOutside(history?.fit?.power), 0),\n    expected_cop: round(atOutside(history?.fit?.cop), 2),\n};\n\nglobal.set(\"heat_pump_feedforward\", msg.feedforward);\n\nconst text = heating ? `${msg.feedforward.water_temp} °C` : \"Off for today\";\nnode.status({ fill: heating ? \"green\" : \"grey\", shape: \"dot\", text: `${text} @ ${outside} °C (${mode}, ${source})` });\nreturn msg;\n",
+        "name": "Check input",
+        "func": "// logger, usage: log(this, \"\");\nconst log = global.get('logger');\n\n// Stop when the outside temperature is unavailable\nif (!isFinite(msg.feedforward.outside_temp)) {\n    log(this, \"Outside temperature unavailable\", \"warn\");\n    node.status({ fill: \"red\", shape: \"ring\", text: \"No outside temperature\" });\n    return null;\n}\n\nnode.status({});\nreturn msg;",
         "outputs": 1,
         "timeout": 0,
         "noerr": 0,
         "initialize": "",
         "finalize": "",
         "libs": [],
-        "x": 710,
-        "y": 120,
+        "x": 480,
+        "y": 800,
         "wires": [
             [
-                "200bc9ff4177f8a6",
-                "c8cdccbeff884117"
+                "7a23f32b38f850d3"
             ]
         ],
-        "id": "1af7426268166ba5",
+        "id": "2e7838b79a6c69ac",
         "z": "30c1cadb3f5445db",
-        "g": "d51727478b63d37b"
+        "g": "9326d2530a306320"
     },
     {
         "type": "api-current-state",
@@ -141,11 +129,11 @@
         "override_payload": "msg",
         "entity_location": "data",
         "override_data": "msg",
-        "x": 470,
-        "y": 520,
+        "x": 480,
+        "y": 760,
         "wires": [
             [
-                "1af7426268166ba5"
+                "2e7838b79a6c69ac"
             ]
         ],
         "id": "128e972ed7ba3ed4",
@@ -192,8 +180,8 @@
         "override_payload": "msg",
         "entity_location": "data",
         "override_data": "msg",
-        "x": 470,
-        "y": 480,
+        "x": 480,
+        "y": 720,
         "wires": [
             [
                 "128e972ed7ba3ed4"
@@ -243,116 +231,14 @@
         "override_payload": "msg",
         "entity_location": "data",
         "override_data": "msg",
-        "x": 470,
-        "y": 440,
+        "x": 480,
+        "y": 680,
         "wires": [
             [
                 "2135a6c2eb7371e7"
             ]
         ],
         "id": "851bbc4f893f44f0",
-        "z": "30c1cadb3f5445db",
-        "g": "9326d2530a306320"
-    },
-    {
-        "type": "api-current-state",
-        "name": "Inside temperature",
-        "server": "176d29a.6f648d6",
-        "version": 3,
-        "outputs": 1,
-        "halt_if": "",
-        "halt_if_type": "str",
-        "halt_if_compare": "is",
-        "entity_id": "sensor.heat_pump_inside_temperature",
-        "state_type": "str",
-        "blockInputOverrides": true,
-        "outputProperties": [
-            {
-                "property": "payload",
-                "propertyType": "msg",
-                "value": "string",
-                "valueType": "entityState"
-            },
-            {
-                "property": "data",
-                "propertyType": "msg",
-                "value": "",
-                "valueType": "entity"
-            },
-            {
-                "property": "feedforward.inside_temp",
-                "propertyType": "msg",
-                "value": "number",
-                "valueType": "entityState"
-            }
-        ],
-        "for": "0",
-        "forType": "num",
-        "forUnits": "minutes",
-        "override_topic": false,
-        "state_location": "payload",
-        "override_payload": "msg",
-        "entity_location": "data",
-        "override_data": "msg",
-        "x": 470,
-        "y": 400,
-        "wires": [
-            [
-                "851bbc4f893f44f0"
-            ]
-        ],
-        "id": "c0a55e3b85cafd7e",
-        "z": "30c1cadb3f5445db",
-        "g": "9326d2530a306320"
-    },
-    {
-        "type": "api-current-state",
-        "name": "Outside temp 24h average",
-        "server": "176d29a.6f648d6",
-        "version": 3,
-        "outputs": 1,
-        "halt_if": "",
-        "halt_if_type": "str",
-        "halt_if_compare": "is",
-        "entity_id": "sensor.heat_pump_outside_temperature_24h_average",
-        "state_type": "str",
-        "blockInputOverrides": true,
-        "outputProperties": [
-            {
-                "property": "payload",
-                "propertyType": "msg",
-                "value": "string",
-                "valueType": "entityState"
-            },
-            {
-                "property": "data",
-                "propertyType": "msg",
-                "value": "",
-                "valueType": "entity"
-            },
-            {
-                "property": "feedforward.outside_temp_avg",
-                "propertyType": "msg",
-                "value": "number",
-                "valueType": "entityState"
-            }
-        ],
-        "for": "0",
-        "forType": "num",
-        "forUnits": "minutes",
-        "override_topic": false,
-        "state_location": "payload",
-        "override_payload": "msg",
-        "entity_location": "data",
-        "override_data": "msg",
-        "x": 470,
-        "y": 360,
-        "wires": [
-            [
-                "c0a55e3b85cafd7e"
-            ]
-        ],
-        "id": "6c85a2d0f94b9418",
         "z": "30c1cadb3f5445db",
         "g": "9326d2530a306320"
     },
@@ -396,11 +282,11 @@
         "override_payload": "msg",
         "entity_location": "data",
         "override_data": "msg",
-        "x": 470,
-        "y": 320,
+        "x": 480,
+        "y": 640,
         "wires": [
             [
-                "6c85a2d0f94b9418"
+                "851bbc4f893f44f0"
             ]
         ],
         "id": "d3aa92a7f2f49ced",
@@ -447,8 +333,8 @@
         "override_payload": "msg",
         "entity_location": "data",
         "override_data": "msg",
-        "x": 470,
-        "y": 280,
+        "x": 480,
+        "y": 600,
         "wires": [
             [
                 "d3aa92a7f2f49ced"
@@ -498,8 +384,8 @@
         "override_payload": "msg",
         "entity_location": "data",
         "override_data": "msg",
-        "x": 470,
-        "y": 240,
+        "x": 480,
+        "y": 560,
         "wires": [
             [
                 "6b0111110de2dc26"
@@ -549,8 +435,8 @@
         "override_payload": "msg",
         "entity_location": "data",
         "override_data": "msg",
-        "x": 470,
-        "y": 200,
+        "x": 480,
+        "y": 520,
         "wires": [
             [
                 "19bffb623a389680"
@@ -600,14 +486,422 @@
         "override_payload": "msg",
         "entity_location": "data",
         "override_data": "msg",
-        "x": 470,
-        "y": 160,
+        "x": 480,
+        "y": 480,
         "wires": [
             [
                 "b022adda0d5f0cee"
             ]
         ],
         "id": "accc03992ae42663",
+        "z": "30c1cadb3f5445db",
+        "g": "9326d2530a306320"
+    },
+    {
+        "type": "api-current-state",
+        "name": "Simple forecast hours",
+        "server": "176d29a.6f648d6",
+        "version": 3,
+        "outputs": 1,
+        "halt_if": "",
+        "halt_if_type": "str",
+        "halt_if_compare": "is",
+        "entity_id": "input_number.heat_pump_feedforward_simple_forecast_hours",
+        "state_type": "str",
+        "blockInputOverrides": true,
+        "outputProperties": [
+            {
+                "property": "payload",
+                "propertyType": "msg",
+                "value": "string",
+                "valueType": "entityState"
+            },
+            {
+                "property": "data",
+                "propertyType": "msg",
+                "value": "",
+                "valueType": "entity"
+            },
+            {
+                "property": "feedforward.simple_forecast_hours",
+                "propertyType": "msg",
+                "value": "number",
+                "valueType": "entityState"
+            }
+        ],
+        "for": "0",
+        "forType": "num",
+        "forUnits": "minutes",
+        "override_topic": false,
+        "state_location": "payload",
+        "override_payload": "msg",
+        "entity_location": "data",
+        "override_data": "msg",
+        "x": 480,
+        "y": 440,
+        "wires": [
+            [
+                "accc03992ae42663"
+            ]
+        ],
+        "id": "66fb7a17d516d5b2",
+        "z": "30c1cadb3f5445db",
+        "g": "9326d2530a306320"
+    },
+    {
+        "type": "api-current-state",
+        "name": "Forecast bias correction",
+        "server": "176d29a.6f648d6",
+        "version": 3,
+        "outputs": 1,
+        "halt_if": "",
+        "halt_if_type": "str",
+        "halt_if_compare": "is",
+        "entity_id": "input_boolean.heat_pump_feedforward_forecast_bias_correction",
+        "state_type": "str",
+        "blockInputOverrides": true,
+        "outputProperties": [
+            {
+                "property": "payload",
+                "propertyType": "msg",
+                "value": "string",
+                "valueType": "entityState"
+            },
+            {
+                "property": "data",
+                "propertyType": "msg",
+                "value": "",
+                "valueType": "entity"
+            },
+            {
+                "property": "feedforward.forecast_bias_correction",
+                "propertyType": "msg",
+                "value": "string",
+                "valueType": "entityState"
+            }
+        ],
+        "for": "0",
+        "forType": "num",
+        "forUnits": "minutes",
+        "override_topic": false,
+        "state_location": "payload",
+        "override_payload": "msg",
+        "entity_location": "data",
+        "override_data": "msg",
+        "x": 480,
+        "y": 400,
+        "wires": [
+            [
+                "66fb7a17d516d5b2"
+            ]
+        ],
+        "id": "76f4920518273d52",
+        "z": "30c1cadb3f5445db",
+        "g": "9326d2530a306320"
+    },
+    {
+        "type": "api-current-state",
+        "name": "Forecast weight",
+        "server": "176d29a.6f648d6",
+        "version": 3,
+        "outputs": 1,
+        "halt_if": "",
+        "halt_if_type": "str",
+        "halt_if_compare": "is",
+        "entity_id": "input_number.heat_pump_feedforward_forecast_weight",
+        "state_type": "str",
+        "blockInputOverrides": true,
+        "outputProperties": [
+            {
+                "property": "payload",
+                "propertyType": "msg",
+                "value": "string",
+                "valueType": "entityState"
+            },
+            {
+                "property": "data",
+                "propertyType": "msg",
+                "value": "",
+                "valueType": "entity"
+            },
+            {
+                "property": "feedforward.forecast_weight",
+                "propertyType": "msg",
+                "value": "number",
+                "valueType": "entityState"
+            }
+        ],
+        "for": "0",
+        "forType": "num",
+        "forUnits": "minutes",
+        "override_topic": false,
+        "state_location": "payload",
+        "override_payload": "msg",
+        "entity_location": "data",
+        "override_data": "msg",
+        "x": 480,
+        "y": 360,
+        "wires": [
+            [
+                "76f4920518273d52"
+            ]
+        ],
+        "id": "a61c7bd01a2d6b25",
+        "z": "30c1cadb3f5445db",
+        "g": "9326d2530a306320"
+    },
+    {
+        "type": "api-current-state",
+        "name": "Forecast window",
+        "server": "176d29a.6f648d6",
+        "version": 3,
+        "outputs": 1,
+        "halt_if": "",
+        "halt_if_type": "str",
+        "halt_if_compare": "is",
+        "entity_id": "input_number.heat_pump_feedforward_forecast_window",
+        "state_type": "str",
+        "blockInputOverrides": true,
+        "outputProperties": [
+            {
+                "property": "payload",
+                "propertyType": "msg",
+                "value": "string",
+                "valueType": "entityState"
+            },
+            {
+                "property": "data",
+                "propertyType": "msg",
+                "value": "",
+                "valueType": "entity"
+            },
+            {
+                "property": "feedforward.forecast_window",
+                "propertyType": "msg",
+                "value": "number",
+                "valueType": "entityState"
+            }
+        ],
+        "for": "0",
+        "forType": "num",
+        "forUnits": "minutes",
+        "override_topic": false,
+        "state_location": "payload",
+        "override_payload": "msg",
+        "entity_location": "data",
+        "override_data": "msg",
+        "x": 480,
+        "y": 320,
+        "wires": [
+            [
+                "a61c7bd01a2d6b25"
+            ]
+        ],
+        "id": "a9671ded4d73064d",
+        "z": "30c1cadb3f5445db",
+        "g": "9326d2530a306320"
+    },
+    {
+        "type": "api-current-state",
+        "name": "Forecast lead time",
+        "server": "176d29a.6f648d6",
+        "version": 3,
+        "outputs": 1,
+        "halt_if": "",
+        "halt_if_type": "str",
+        "halt_if_compare": "is",
+        "entity_id": "input_number.heat_pump_feedforward_forecast_lead_time",
+        "state_type": "str",
+        "blockInputOverrides": true,
+        "outputProperties": [
+            {
+                "property": "payload",
+                "propertyType": "msg",
+                "value": "string",
+                "valueType": "entityState"
+            },
+            {
+                "property": "data",
+                "propertyType": "msg",
+                "value": "",
+                "valueType": "entity"
+            },
+            {
+                "property": "feedforward.forecast_lead_time",
+                "propertyType": "msg",
+                "value": "number",
+                "valueType": "entityState"
+            }
+        ],
+        "for": "0",
+        "forType": "num",
+        "forUnits": "minutes",
+        "override_topic": false,
+        "state_location": "payload",
+        "override_payload": "msg",
+        "entity_location": "data",
+        "override_data": "msg",
+        "x": 480,
+        "y": 280,
+        "wires": [
+            [
+                "a9671ded4d73064d"
+            ]
+        ],
+        "id": "2dd1ebf803fee5fa",
+        "z": "30c1cadb3f5445db",
+        "g": "9326d2530a306320"
+    },
+    {
+        "type": "api-current-state",
+        "name": "Outside source",
+        "server": "176d29a.6f648d6",
+        "version": 3,
+        "outputs": 1,
+        "halt_if": "",
+        "halt_if_type": "str",
+        "halt_if_compare": "is",
+        "entity_id": "input_select.heat_pump_feedforward_outside_source",
+        "state_type": "str",
+        "blockInputOverrides": true,
+        "outputProperties": [
+            {
+                "property": "payload",
+                "propertyType": "msg",
+                "value": "string",
+                "valueType": "entityState"
+            },
+            {
+                "property": "data",
+                "propertyType": "msg",
+                "value": "",
+                "valueType": "entity"
+            },
+            {
+                "property": "feedforward.outside_source",
+                "propertyType": "msg",
+                "value": "string",
+                "valueType": "entityState"
+            }
+        ],
+        "for": "0",
+        "forType": "num",
+        "forUnits": "minutes",
+        "override_topic": false,
+        "state_location": "payload",
+        "override_payload": "msg",
+        "entity_location": "data",
+        "override_data": "msg",
+        "x": 480,
+        "y": 240,
+        "wires": [
+            [
+                "2dd1ebf803fee5fa"
+            ]
+        ],
+        "id": "5c7cb34884168591",
+        "z": "30c1cadb3f5445db",
+        "g": "9326d2530a306320"
+    },
+    {
+        "type": "api-current-state",
+        "name": "Inside temperature",
+        "server": "176d29a.6f648d6",
+        "version": 3,
+        "outputs": 1,
+        "halt_if": "",
+        "halt_if_type": "str",
+        "halt_if_compare": "is",
+        "entity_id": "sensor.heat_pump_inside_temperature",
+        "state_type": "str",
+        "blockInputOverrides": true,
+        "outputProperties": [
+            {
+                "property": "payload",
+                "propertyType": "msg",
+                "value": "string",
+                "valueType": "entityState"
+            },
+            {
+                "property": "data",
+                "propertyType": "msg",
+                "value": "",
+                "valueType": "entity"
+            },
+            {
+                "property": "feedforward.inside_temp",
+                "propertyType": "msg",
+                "value": "number",
+                "valueType": "entityState"
+            }
+        ],
+        "for": "0",
+        "forType": "num",
+        "forUnits": "minutes",
+        "override_topic": false,
+        "state_location": "payload",
+        "override_payload": "msg",
+        "entity_location": "data",
+        "override_data": "msg",
+        "x": 480,
+        "y": 200,
+        "wires": [
+            [
+                "5c7cb34884168591"
+            ]
+        ],
+        "id": "c0a55e3b85cafd7e",
+        "z": "30c1cadb3f5445db",
+        "g": "9326d2530a306320"
+    },
+    {
+        "type": "api-current-state",
+        "name": "Outside temp 24h average",
+        "server": "176d29a.6f648d6",
+        "version": 3,
+        "outputs": 1,
+        "halt_if": "",
+        "halt_if_type": "str",
+        "halt_if_compare": "is",
+        "entity_id": "sensor.heat_pump_outside_temperature_24h_average",
+        "state_type": "str",
+        "blockInputOverrides": true,
+        "outputProperties": [
+            {
+                "property": "payload",
+                "propertyType": "msg",
+                "value": "string",
+                "valueType": "entityState"
+            },
+            {
+                "property": "data",
+                "propertyType": "msg",
+                "value": "",
+                "valueType": "entity"
+            },
+            {
+                "property": "feedforward.outside_temp_avg",
+                "propertyType": "msg",
+                "value": "number",
+                "valueType": "entityState"
+            }
+        ],
+        "for": "0",
+        "forType": "num",
+        "forUnits": "minutes",
+        "override_topic": false,
+        "state_location": "payload",
+        "override_payload": "msg",
+        "entity_location": "data",
+        "override_data": "msg",
+        "x": 480,
+        "y": 160,
+        "wires": [
+            [
+                "c0a55e3b85cafd7e"
+            ]
+        ],
+        "id": "6c85a2d0f94b9418",
         "z": "30c1cadb3f5445db",
         "g": "9326d2530a306320"
     },
@@ -651,11 +945,11 @@
         "override_payload": "msg",
         "entity_location": "data",
         "override_data": "msg",
-        "x": 470,
+        "x": 480,
         "y": 120,
         "wires": [
             [
-                "accc03992ae42663"
+                "6c85a2d0f94b9418"
             ]
         ],
         "id": "0c86fb739462581f",
@@ -723,13 +1017,19 @@
         "entities": {
             "entity": [
                 "sensor.sparrow_p60_heat_pump_outside_temperature",
+                "sensor.heat_pump_outside_temperature_24h_average",
+                "sensor.heat_pump_inside_temperature",
+                "input_select.heat_pump_feedforward_outside_source",
+                "input_number.heat_pump_feedforward_forecast_lead_time",
+                "input_number.heat_pump_feedforward_forecast_window",
+                "input_number.heat_pump_feedforward_forecast_weight",
+                "input_boolean.heat_pump_feedforward_forecast_bias_correction",
+                "input_number.heat_pump_feedforward_simple_forecast_hours",
                 "input_select.heat_pump_feedforward_source",
                 "input_number.heat_pump_feedforward_manual_slope",
                 "input_number.heat_pump_feedforward_manual_intercept",
                 "input_number.heat_pump_feedforward_min_water_temperature",
                 "input_number.heat_pump_feedforward_max_water_temperature",
-                "sensor.heat_pump_outside_temperature_24h_average",
-                "sensor.heat_pump_inside_temperature",
                 "input_number.heat_pump_feedforward_simple_outside_temperature",
                 "input_datetime.heat_pump_feedforward_simple_start_time",
                 "input_number.heat_pump_feedforward_simple_stop_inside_temperature",
@@ -784,6 +1084,1053 @@
         "g": "7b5ee698cac28b91"
     },
     {
+        "type": "group",
+        "name": "Weather forecast",
+        "style": {
+            "label": true
+        },
+        "nodes": [
+            "f42f53ae62c673a0",
+            "94c74de5e3e40852",
+            "e53d4cb331cec029",
+            "4bb7dde4c06140fb"
+        ],
+        "x": -3,
+        "y": 219,
+        "w": 388,
+        "h": 152,
+        "id": "78779419097bc164",
+        "z": "30c1cadb3f5445db"
+    },
+    {
+        "type": "change",
+        "name": "Cache forecast",
+        "rules": [
+            {
+                "t": "set",
+                "p": "weather_forecast",
+                "pt": "flow",
+                "to": "{\n    \"fetched\": $millis(),\n    \"list\": [payload.*.forecast.{\"t\": $toMillis(datetime), \"temp\": temperature}]\n}",
+                "tot": "jsonata"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 270,
+        "y": 300,
+        "wires": [
+            [
+                "3bed5c43fbcf1646"
+            ]
+        ],
+        "id": "f42f53ae62c673a0",
+        "z": "30c1cadb3f5445db",
+        "g": "78779419097bc164"
+    },
+    {
+        "type": "debug",
+        "name": "Forecast",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 270,
+        "y": 340,
+        "wires": [],
+        "id": "94c74de5e3e40852",
+        "z": "30c1cadb3f5445db",
+        "g": "78779419097bc164"
+    },
+    {
+        "type": "api-call-service",
+        "name": "Hourly forecast",
+        "server": "176d29a.6f648d6",
+        "version": 7,
+        "debugenabled": false,
+        "action": "weather.get_forecasts",
+        "floorId": [],
+        "areaId": [],
+        "deviceId": [],
+        "entityId": [
+            "weather.forecast_home"
+        ],
+        "labelId": [],
+        "data": "{\"type\": \"hourly\"}",
+        "dataType": "json",
+        "mergeContext": "",
+        "mustacheAltTags": false,
+        "outputProperties": [
+            {
+                "property": "payload",
+                "propertyType": "msg",
+                "value": "",
+                "valueType": "results"
+            }
+        ],
+        "queue": "none",
+        "blockInputOverrides": true,
+        "domain": "weather",
+        "service": "get_forecasts",
+        "x": 270,
+        "y": 260,
+        "wires": [
+            [
+                "f42f53ae62c673a0",
+                "94c74de5e3e40852"
+            ]
+        ],
+        "id": "e53d4cb331cec029",
+        "z": "30c1cadb3f5445db",
+        "g": "78779419097bc164"
+    },
+    {
+        "type": "inject",
+        "name": "Every 30 min",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "1800",
+        "crontab": "",
+        "once": true,
+        "onceDelay": "10",
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 100,
+        "y": 260,
+        "wires": [
+            [
+                "e53d4cb331cec029"
+            ]
+        ],
+        "id": "4bb7dde4c06140fb",
+        "z": "30c1cadb3f5445db",
+        "g": "78779419097bc164"
+    },
+    {
+        "type": "group",
+        "name": "Outside temperature",
+        "style": {
+            "label": true
+        },
+        "nodes": [
+            "7a23f32b38f850d3",
+            "55a094781bff47fe",
+            "b1476b11c7ec1991",
+            "ccaabed2f9a5345d",
+            "aa22872f8ef9f507",
+            "af550fea69ce6ad3",
+            "efba9bb06a76880d",
+            "a0ee27f9bda8fd42",
+            "edad1618025fce65",
+            "e9212f91e3286cae"
+        ],
+        "x": 669,
+        "y": 19,
+        "w": 1254,
+        "h": 172,
+        "id": "3fc28c723a38ad8f",
+        "z": "30c1cadb3f5445db"
+    },
+    {
+        "type": "switch",
+        "name": "Outside source",
+        "property": "feedforward.outside_source",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "eq",
+                "v": "Forecast",
+                "vt": "str"
+            },
+            {
+                "t": "else"
+            }
+        ],
+        "checkall": "false",
+        "repair": false,
+        "outputs": 2,
+        "x": 780,
+        "y": 120,
+        "wires": [
+            [
+                "55a094781bff47fe"
+            ],
+            [
+                "e9212f91e3286cae"
+            ]
+        ],
+        "id": "7a23f32b38f850d3",
+        "z": "30c1cadb3f5445db",
+        "g": "3fc28c723a38ad8f"
+    },
+    {
+        "type": "change",
+        "name": "Get forecast",
+        "rules": [
+            {
+                "t": "set",
+                "p": "forecast",
+                "pt": "msg",
+                "to": "weather_forecast",
+                "tot": "flow"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 950,
+        "y": 100,
+        "wires": [
+            [
+                "b1476b11c7ec1991"
+            ]
+        ],
+        "id": "55a094781bff47fe",
+        "z": "30c1cadb3f5445db",
+        "g": "3fc28c723a38ad8f"
+    },
+    {
+        "type": "switch",
+        "name": "Forecast recent?",
+        "property": "$exists(forecast.fetched) and $count(forecast.list) > 0 and\n$millis() - forecast.fetched < 3 * 3600000",
+        "propertyType": "jsonata",
+        "rules": [
+            {
+                "t": "true"
+            },
+            {
+                "t": "else"
+            }
+        ],
+        "checkall": "false",
+        "repair": false,
+        "outputs": 2,
+        "x": 1120,
+        "y": 100,
+        "wires": [
+            [
+                "ccaabed2f9a5345d"
+            ],
+            [
+                "edad1618025fce65"
+            ]
+        ],
+        "id": "b1476b11c7ec1991",
+        "z": "30c1cadb3f5445db",
+        "g": "3fc28c723a38ad8f"
+    },
+    {
+        "type": "function",
+        "name": "Forecast averages",
+        "func": "// Forecast temperatures from the cached hourly forecast\nconst ff = msg.feedforward;\nconst list = msg.forecast.list; // [{ t: ms, temp: °C }]\nconst HOUR_MS = 3_600_000;\nconst now = Date.now();\n\n// Temperature at time t, linear between the hourly forecast points\nfunction at(t) {\n    if (t <= list[0].t) return list[0].temp;\n    for (let i = 1; i < list.length; i++) {\n        if (t <= list[i].t) {\n            const a = list[i - 1], b = list[i];\n            return a.temp + (b.temp - a.temp) * (t - a.t) / (b.t - a.t);\n        }\n    }\n    return list[list.length - 1].temp;\n}\n\n// Average temperature over [from, from + hours], sampled every 15 minutes\nfunction average(from, hours) {\n    if (!(hours > 0)) return at(from);\n    const steps = Math.round(hours * 4);\n    let sum = 0;\n    for (let i = 0; i < steps; i++) sum += at(from + (i + 0.5) * hours * HOUR_MS / steps);\n    return sum / steps;\n}\n\nff.forecast_now = at(now);                                                            // bias correction\nff.forecast_temp = average(now + ff.forecast_lead_time * HOUR_MS, ff.forecast_window); // heating curve\nff.forecast_avg = average(now, ff.simple_forecast_hours);                             // simple schedule\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1300,
+        "y": 80,
+        "wires": [
+            [
+                "aa22872f8ef9f507"
+            ]
+        ],
+        "id": "ccaabed2f9a5345d",
+        "z": "30c1cadb3f5445db",
+        "g": "3fc28c723a38ad8f"
+    },
+    {
+        "type": "switch",
+        "name": "Bias correction?",
+        "property": "feedforward.forecast_bias_correction",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "eq",
+                "v": "on",
+                "vt": "str"
+            },
+            {
+                "t": "else"
+            }
+        ],
+        "checkall": "false",
+        "repair": false,
+        "outputs": 2,
+        "x": 1480,
+        "y": 80,
+        "wires": [
+            [
+                "af550fea69ce6ad3"
+            ],
+            [
+                "efba9bb06a76880d"
+            ]
+        ],
+        "id": "aa22872f8ef9f507",
+        "z": "30c1cadb3f5445db",
+        "g": "3fc28c723a38ad8f"
+    },
+    {
+        "type": "change",
+        "name": "Measure bias",
+        "rules": [
+            {
+                "t": "set",
+                "p": "feedforward.forecast_bias",
+                "pt": "msg",
+                "to": "feedforward.outside_temp - feedforward.forecast_now",
+                "tot": "jsonata"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 1650,
+        "y": 60,
+        "wires": [
+            [
+                "a0ee27f9bda8fd42"
+            ]
+        ],
+        "id": "af550fea69ce6ad3",
+        "z": "30c1cadb3f5445db",
+        "g": "3fc28c723a38ad8f"
+    },
+    {
+        "type": "change",
+        "name": "No bias",
+        "rules": [
+            {
+                "t": "set",
+                "p": "feedforward.forecast_bias",
+                "pt": "msg",
+                "to": "0",
+                "tot": "num"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 1650,
+        "y": 100,
+        "wires": [
+            [
+                "a0ee27f9bda8fd42"
+            ]
+        ],
+        "id": "efba9bb06a76880d",
+        "z": "30c1cadb3f5445db",
+        "g": "3fc28c723a38ad8f"
+    },
+    {
+        "type": "change",
+        "name": "Use forecast",
+        "rules": [
+            {
+                "t": "set",
+                "p": "feedforward.forecast_temp",
+                "pt": "msg",
+                "to": "feedforward.forecast_temp + feedforward.forecast_bias",
+                "tot": "jsonata"
+            },
+            {
+                "t": "set",
+                "p": "feedforward.outside_temp_used",
+                "pt": "msg",
+                "to": "feedforward.outside_temp + feedforward.forecast_weight / 100 * (feedforward.forecast_temp - feedforward.outside_temp)",
+                "tot": "jsonata"
+            },
+            {
+                "t": "set",
+                "p": "feedforward.outside_temp_avg_used",
+                "pt": "msg",
+                "to": "$round(feedforward.forecast_avg + feedforward.forecast_bias, 1)",
+                "tot": "jsonata"
+            },
+            {
+                "t": "delete",
+                "p": "forecast",
+                "pt": "msg"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 1820,
+        "y": 80,
+        "wires": [
+            [
+                "ad17111227dd6cc6"
+            ]
+        ],
+        "id": "a0ee27f9bda8fd42",
+        "z": "30c1cadb3f5445db",
+        "g": "3fc28c723a38ad8f"
+    },
+    {
+        "type": "change",
+        "name": "Forecast unavailable",
+        "rules": [
+            {
+                "t": "set",
+                "p": "feedforward.outside_source",
+                "pt": "msg",
+                "to": "Current (forecast unavailable)",
+                "tot": "str"
+            },
+            {
+                "t": "delete",
+                "p": "forecast",
+                "pt": "msg"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 1320,
+        "y": 140,
+        "wires": [
+            [
+                "e9212f91e3286cae"
+            ]
+        ],
+        "id": "edad1618025fce65",
+        "z": "30c1cadb3f5445db",
+        "g": "3fc28c723a38ad8f"
+    },
+    {
+        "type": "change",
+        "name": "Use current",
+        "rules": [
+            {
+                "t": "set",
+                "p": "feedforward.outside_temp_used",
+                "pt": "msg",
+                "to": "feedforward.outside_temp",
+                "tot": "msg"
+            },
+            {
+                "t": "set",
+                "p": "feedforward.outside_temp_avg_used",
+                "pt": "msg",
+                "to": "feedforward.outside_temp_avg",
+                "tot": "msg"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 1500,
+        "y": 160,
+        "wires": [
+            [
+                "ad17111227dd6cc6"
+            ]
+        ],
+        "id": "e9212f91e3286cae",
+        "z": "30c1cadb3f5445db",
+        "g": "3fc28c723a38ad8f"
+    },
+    {
+        "type": "group",
+        "name": "Heating curve",
+        "style": {
+            "label": true
+        },
+        "nodes": [
+            "ad17111227dd6cc6",
+            "65d9c6a38a4f29e4",
+            "9c6ef518c904d9ce",
+            "b8fa296fb6e58ac7",
+            "5870d89781dd832a",
+            "ff36868108d81d4c"
+        ],
+        "x": 677,
+        "y": 219,
+        "w": 1070,
+        "h": 132,
+        "id": "c31fba617253892f",
+        "z": "30c1cadb3f5445db"
+    },
+    {
+        "type": "switch",
+        "name": "Curve source",
+        "property": "feedforward.source",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "eq",
+                "v": "History",
+                "vt": "str"
+            },
+            {
+                "t": "else"
+            }
+        ],
+        "checkall": "false",
+        "repair": false,
+        "outputs": 2,
+        "x": 780,
+        "y": 300,
+        "wires": [
+            [
+                "65d9c6a38a4f29e4"
+            ],
+            [
+                "5870d89781dd832a"
+            ]
+        ],
+        "id": "ad17111227dd6cc6",
+        "z": "30c1cadb3f5445db",
+        "g": "c31fba617253892f"
+    },
+    {
+        "type": "switch",
+        "name": "History curve available?",
+        "property": "$exists($globalContext(\"heat_pump_history\").fit.water_target_temp.slope)",
+        "propertyType": "jsonata",
+        "rules": [
+            {
+                "t": "true"
+            },
+            {
+                "t": "else"
+            }
+        ],
+        "checkall": "false",
+        "repair": false,
+        "outputs": 2,
+        "x": 980,
+        "y": 280,
+        "wires": [
+            [
+                "9c6ef518c904d9ce"
+            ],
+            [
+                "b8fa296fb6e58ac7"
+            ]
+        ],
+        "id": "65d9c6a38a4f29e4",
+        "z": "30c1cadb3f5445db",
+        "g": "c31fba617253892f"
+    },
+    {
+        "type": "change",
+        "name": "Use history curve",
+        "rules": [
+            {
+                "t": "set",
+                "p": "feedforward.slope",
+                "pt": "msg",
+                "to": "$globalContext(\"heat_pump_history\").fit.water_target_temp.slope",
+                "tot": "jsonata"
+            },
+            {
+                "t": "set",
+                "p": "feedforward.intercept",
+                "pt": "msg",
+                "to": "$globalContext(\"heat_pump_history\").fit.water_target_temp.intercept",
+                "tot": "jsonata"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 1200,
+        "y": 260,
+        "wires": [
+            [
+                "ff36868108d81d4c"
+            ]
+        ],
+        "id": "9c6ef518c904d9ce",
+        "z": "30c1cadb3f5445db",
+        "g": "c31fba617253892f"
+    },
+    {
+        "type": "change",
+        "name": "History unavailable",
+        "rules": [
+            {
+                "t": "set",
+                "p": "feedforward.source",
+                "pt": "msg",
+                "to": "Manual (history unavailable)",
+                "tot": "str"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 1200,
+        "y": 300,
+        "wires": [
+            [
+                "5870d89781dd832a"
+            ]
+        ],
+        "id": "b8fa296fb6e58ac7",
+        "z": "30c1cadb3f5445db",
+        "g": "c31fba617253892f"
+    },
+    {
+        "type": "change",
+        "name": "Use manual curve",
+        "rules": [
+            {
+                "t": "set",
+                "p": "feedforward.slope",
+                "pt": "msg",
+                "to": "feedforward.manual_slope",
+                "tot": "msg"
+            },
+            {
+                "t": "set",
+                "p": "feedforward.intercept",
+                "pt": "msg",
+                "to": "feedforward.manual_intercept",
+                "tot": "msg"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 1390,
+        "y": 320,
+        "wires": [
+            [
+                "ff36868108d81d4c"
+            ]
+        ],
+        "id": "5870d89781dd832a",
+        "z": "30c1cadb3f5445db",
+        "g": "c31fba617253892f"
+    },
+    {
+        "type": "change",
+        "name": "Curve water temperature",
+        "rules": [
+            {
+                "t": "set",
+                "p": "feedforward.mode",
+                "pt": "msg",
+                "to": "Curve",
+                "tot": "str"
+            },
+            {
+                "t": "set",
+                "p": "feedforward.heating",
+                "pt": "msg",
+                "to": "true",
+                "tot": "bool"
+            },
+            {
+                "t": "set",
+                "p": "feedforward.water_temp",
+                "pt": "msg",
+                "to": "$min([\n    $max([\n        feedforward.slope * feedforward.outside_temp_used + feedforward.intercept,\n        feedforward.min_water_temp\n    ]),\n    feedforward.max_water_temp\n])",
+                "tot": "jsonata"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 1600,
+        "y": 280,
+        "wires": [
+            [
+                "3e0bdac6b10e1948"
+            ]
+        ],
+        "id": "ff36868108d81d4c",
+        "z": "30c1cadb3f5445db",
+        "g": "c31fba617253892f"
+    },
+    {
+        "type": "group",
+        "name": "Simple day schedule",
+        "style": {
+            "label": true
+        },
+        "nodes": [
+            "3e0bdac6b10e1948",
+            "9880e4aac727cfad",
+            "397b3aad0d3165b9",
+            "719f04cdea594702",
+            "d31920daeed83509",
+            "50061ea70d361e7a",
+            "ebcb2f9d4c35dc1c"
+        ],
+        "x": 673,
+        "y": 379,
+        "w": 1138,
+        "h": 112,
+        "id": "c812e29b26ecac8b",
+        "z": "30c1cadb3f5445db"
+    },
+    {
+        "type": "switch",
+        "name": "Mild weather?",
+        "property": "feedforward.outside_temp_avg_used",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "gte",
+                "v": "feedforward.simple_outside_temp",
+                "vt": "msg"
+            },
+            {
+                "t": "else"
+            }
+        ],
+        "checkall": "false",
+        "repair": false,
+        "outputs": 2,
+        "x": 780,
+        "y": 460,
+        "wires": [
+            [
+                "9880e4aac727cfad"
+            ],
+            [
+                "b530d8f114f2c5cd"
+            ]
+        ],
+        "id": "3e0bdac6b10e1948",
+        "z": "30c1cadb3f5445db",
+        "g": "c812e29b26ecac8b"
+    },
+    {
+        "type": "change",
+        "name": "Simple: 24 °C water",
+        "rules": [
+            {
+                "t": "set",
+                "p": "feedforward.mode",
+                "pt": "msg",
+                "to": "Simple",
+                "tot": "str"
+            },
+            {
+                "t": "set",
+                "p": "feedforward.water_temp",
+                "pt": "msg",
+                "to": "24",
+                "tot": "num"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 970,
+        "y": 440,
+        "wires": [
+            [
+                "397b3aad0d3165b9"
+            ]
+        ],
+        "id": "9880e4aac727cfad",
+        "z": "30c1cadb3f5445db",
+        "g": "c812e29b26ecac8b"
+    },
+    {
+        "type": "function",
+        "name": "Heating day",
+        "func": "// The heating day starts at the start time, before that time the previous day still counts\nconst [h, m] = String(msg.feedforward.simple_start_time || \"00:00\").split(\":\").map(Number);\nconst start = new Date();\nstart.setHours(h || 0, m || 0, 0, 0);\nif (Date.now() < start.getTime()) start.setDate(start.getDate() - 1);\n\nmsg.feedforward.heating_day = start.toISOString();\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1150,
+        "y": 440,
+        "wires": [
+            [
+                "719f04cdea594702"
+            ]
+        ],
+        "id": "397b3aad0d3165b9",
+        "z": "30c1cadb3f5445db",
+        "g": "c812e29b26ecac8b"
+    },
+    {
+        "type": "switch",
+        "name": "Stopped today?",
+        "property": "feedforward.heating_day",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "eq",
+                "v": "simple_stopped_day",
+                "vt": "flow"
+            },
+            {
+                "t": "else"
+            }
+        ],
+        "checkall": "false",
+        "repair": false,
+        "outputs": 2,
+        "x": 1310,
+        "y": 440,
+        "wires": [
+            [
+                "d31920daeed83509"
+            ],
+            [
+                "50061ea70d361e7a"
+            ]
+        ],
+        "id": "719f04cdea594702",
+        "z": "30c1cadb3f5445db",
+        "g": "c812e29b26ecac8b"
+    },
+    {
+        "type": "change",
+        "name": "Off for today",
+        "rules": [
+            {
+                "t": "set",
+                "p": "feedforward.heating",
+                "pt": "msg",
+                "to": "false",
+                "tot": "bool"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 1500,
+        "y": 420,
+        "wires": [
+            [
+                "b530d8f114f2c5cd"
+            ]
+        ],
+        "id": "d31920daeed83509",
+        "z": "30c1cadb3f5445db",
+        "g": "c812e29b26ecac8b"
+    },
+    {
+        "type": "switch",
+        "name": "Inside temp reached?",
+        "property": "feedforward.inside_temp",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "gte",
+                "v": "feedforward.simple_stop_inside_temp",
+                "vt": "msg"
+            },
+            {
+                "t": "else"
+            }
+        ],
+        "checkall": "false",
+        "repair": false,
+        "outputs": 2,
+        "x": 1500,
+        "y": 460,
+        "wires": [
+            [
+                "ebcb2f9d4c35dc1c"
+            ],
+            [
+                "b530d8f114f2c5cd"
+            ]
+        ],
+        "id": "50061ea70d361e7a",
+        "z": "30c1cadb3f5445db",
+        "g": "c812e29b26ecac8b"
+    },
+    {
+        "type": "change",
+        "name": "Stop for today",
+        "rules": [
+            {
+                "t": "set",
+                "p": "simple_stopped_day",
+                "pt": "flow",
+                "to": "feedforward.heating_day",
+                "tot": "msg"
+            },
+            {
+                "t": "set",
+                "p": "feedforward.heating",
+                "pt": "msg",
+                "to": "false",
+                "tot": "bool"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 1700,
+        "y": 440,
+        "wires": [
+            [
+                "b530d8f114f2c5cd"
+            ]
+        ],
+        "id": "ebcb2f9d4c35dc1c",
+        "z": "30c1cadb3f5445db",
+        "g": "c812e29b26ecac8b"
+    },
+    {
+        "type": "group",
+        "name": "Output",
+        "style": {
+            "label": true
+        },
+        "nodes": [
+            "b530d8f114f2c5cd",
+            "90a2bb64e13e05eb",
+            "fe119518fd53b363",
+            "1ca69e4eb1dc3922"
+        ],
+        "x": 655,
+        "y": 539,
+        "w": 684,
+        "h": 112,
+        "id": "e724741a7d284c34",
+        "z": "30c1cadb3f5445db"
+    },
+    {
+        "type": "change",
+        "name": "Round and expected values",
+        "rules": [
+            {
+                "t": "set",
+                "p": "feedforward.water_temp",
+                "pt": "msg",
+                "to": "$round(feedforward.water_temp, 1)",
+                "tot": "jsonata"
+            },
+            {
+                "t": "set",
+                "p": "feedforward.outside_temp_used",
+                "pt": "msg",
+                "to": "$round(feedforward.outside_temp_used, 1)",
+                "tot": "jsonata"
+            },
+            {
+                "t": "set",
+                "p": "feedforward.forecast_temp",
+                "pt": "msg",
+                "to": "$round(feedforward.forecast_temp, 1)",
+                "tot": "jsonata"
+            },
+            {
+                "t": "set",
+                "p": "feedforward.forecast_bias",
+                "pt": "msg",
+                "to": "$round(feedforward.forecast_bias, 1)",
+                "tot": "jsonata"
+            },
+            {
+                "t": "set",
+                "p": "feedforward.expected_power",
+                "pt": "msg",
+                "to": "(\n    $fit := $globalContext(\"heat_pump_history\").fit.power;\n    $round($fit.slope * feedforward.outside_temp_used + $fit.intercept, 0)\n)",
+                "tot": "jsonata"
+            },
+            {
+                "t": "set",
+                "p": "feedforward.expected_cop",
+                "pt": "msg",
+                "to": "(\n    $fit := $globalContext(\"heat_pump_history\").fit.cop;\n    $round($fit.slope * feedforward.outside_temp_used + $fit.intercept, 2)\n)",
+                "tot": "jsonata"
+            },
+            {
+                "t": "set",
+                "p": "heat_pump_feedforward",
+                "pt": "global",
+                "to": "feedforward",
+                "tot": "msg"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 810,
+        "y": 600,
+        "wires": [
+            [
+                "90a2bb64e13e05eb"
+            ]
+        ],
+        "id": "b530d8f114f2c5cd",
+        "z": "30c1cadb3f5445db",
+        "g": "e724741a7d284c34"
+    },
+    {
+        "type": "function",
+        "name": "Status",
+        "func": "// Status\nconst ff = msg.feedforward;\nconst text = ff.heating ? `${ff.water_temp} °C` : \"Off for today\";\nnode.status({ fill: ff.heating ? \"green\" : \"grey\", shape: \"dot\", text: `${text} @ ${ff.outside_temp_used} °C (${ff.mode}, ${ff.source}, ${ff.outside_source})` });\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1010,
+        "y": 600,
+        "wires": [
+            [
+                "fe119518fd53b363",
+                "1ca69e4eb1dc3922"
+            ]
+        ],
+        "id": "90a2bb64e13e05eb",
+        "z": "30c1cadb3f5445db",
+        "g": "e724741a7d284c34"
+    },
+    {
         "type": "ha-fire-event",
         "name": "Heat pump feedforward",
         "server": "176d29a.6f648d6",
@@ -791,14 +2138,14 @@
         "event": "heat_pump_feedforward",
         "data": "msg.feedforward",
         "dataType": "jsonata",
-        "x": 880,
-        "y": 120,
+        "x": 1200,
+        "y": 580,
         "wires": [
             []
         ],
-        "id": "200bc9ff4177f8a6",
+        "id": "fe119518fd53b363",
         "z": "30c1cadb3f5445db",
-        "g": "d51727478b63d37b"
+        "g": "e724741a7d284c34"
     },
     {
         "type": "debug",
@@ -811,12 +2158,12 @@
         "targetType": "msg",
         "statusVal": "",
         "statusType": "auto",
-        "x": 860,
-        "y": 200,
+        "x": 1180,
+        "y": 620,
         "wires": [],
-        "id": "c8cdccbeff884117",
+        "id": "1ca69e4eb1dc3922",
         "z": "30c1cadb3f5445db",
-        "g": "d51727478b63d37b"
+        "g": "e724741a7d284c34"
     },
     {
         "type": "group",
@@ -829,10 +2176,10 @@
             "07f7c8b9e829f792",
             "518ae76f032fbbbe"
         ],
-        "x": 14,
-        "y": 599,
-        "w": 252,
-        "h": 82,
+        "x": -5,
+        "y": 420,
+        "w": 314,
+        "h": 72,
         "id": "ea4768efe78f4b4f",
         "z": "30c1cadb3f5445db"
     },
@@ -848,7 +2195,7 @@
         "statusVal": "",
         "statusType": "auto",
         "x": 230,
-        "y": 640,
+        "y": 461,
         "wires": [],
         "id": "4d9c58bfbe56084a",
         "z": "30c1cadb3f5445db",
@@ -865,7 +2212,7 @@
         "finalize": "",
         "libs": [],
         "x": 150,
-        "y": 640,
+        "y": 461,
         "wires": [
             [
                 "4d9c58bfbe56084a"
@@ -881,7 +2228,7 @@
         "scope": null,
         "uncaught": false,
         "x": 65,
-        "y": 640,
+        "y": 461,
         "wires": [
             [
                 "07f7c8b9e829f792"
