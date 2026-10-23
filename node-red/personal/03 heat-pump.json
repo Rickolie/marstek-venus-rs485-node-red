@@ -1,21 +1,509 @@
 [
     {
-        "id": "30c1cadb3f5445db",
+        "id": "cf0791d5a26f49c5",
         "type": "tab",
-        "label": "Heat Pump Feedforward",
+        "label": "Heat Pump",
         "disabled": false,
-        "info": "Feedforward water temperature from the outside temperature",
+        "info": "Heat pump history and feedforward, see the subflows for details",
         "env": []
     },
     {
         "type": "comment",
+        "name": "Heat Pump (readme)",
+        "x": 130,
+        "y": 40,
+        "wires": [],
+        "info": "# Heat pump\n\n- **Heat pump history**: daily averages from all Home Assistant history, once a day\n- **Heat pump feedforward**: water temperature from the outside temperature, every 5 minutes\n\nBoth run on their own; the inject nodes recalculate now.\nDouble-click a subflow instance, then *edit subflow template*, to see the details.\n\nConnect your heat pump control to the output of `Heat pump feedforward`.",
+        "id": "f8118a139931c987",
+        "z": "cf0791d5a26f49c5"
+    },
+    {
+        "type": "debug",
+        "name": "Heat pump history",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "heat_pump_history",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 560,
+        "y": 100,
+        "wires": [],
+        "id": "516fe741e2e77f38",
+        "z": "cf0791d5a26f49c5"
+    },
+    {
+        "type": "subflow:21df62bfd0c17be2",
+        "name": "",
+        "x": 350,
+        "y": 100,
+        "wires": [
+            [
+                "516fe741e2e77f38"
+            ]
+        ],
+        "id": "469cbfc65339ca40",
+        "z": "cf0791d5a26f49c5"
+    },
+    {
+        "type": "inject",
+        "name": "Recalculate history",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 140,
+        "y": 100,
+        "wires": [
+            [
+                "469cbfc65339ca40"
+            ]
+        ],
+        "id": "fef283d36866e190",
+        "z": "cf0791d5a26f49c5"
+    },
+    {
+        "type": "debug",
+        "name": "Feedforward",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "feedforward",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 560,
+        "y": 160,
+        "wires": [],
+        "id": "ec0502998b4b10e1",
+        "z": "cf0791d5a26f49c5"
+    },
+    {
+        "type": "subflow:624baa97b06a5041",
+        "name": "",
+        "x": 350,
+        "y": 160,
+        "wires": [
+            [
+                "ec0502998b4b10e1"
+            ]
+        ],
+        "id": "2996f84aa5e25585",
+        "z": "cf0791d5a26f49c5"
+    },
+    {
+        "type": "inject",
+        "name": "Recalculate feedforward",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 150,
+        "y": 160,
+        "wires": [
+            [
+                "2996f84aa5e25585"
+            ]
+        ],
+        "id": "921bf61960c5757d",
+        "z": "cf0791d5a26f49c5"
+    },
+    {
+        "type": "comment",
+        "name": "Connect your heat pump control here",
+        "x": 640,
+        "y": 200,
+        "wires": [],
+        "id": "f5fac34c19347451",
+        "z": "cf0791d5a26f49c5"
+    },
+    {
+        "id": "21df62bfd0c17be2",
+        "type": "subflow",
+        "name": "Heat pump history",
+        "info": "# Heat pump history\n\nCalculates per day, from **all** Home Assistant history:\n- average outside temperature `sensor.sparrow_p60_heat_pump_outside_temperature`\n- average water target temperature `sensor.sparrow_p60_heat_pump_water_target_temperature`\n- average power and energy `sensor.sparrow_p60_heat_pump`\n- average COP `sensor.heatpump_cop_not_below_0`, COP = 0 is excluded\n\nOnly days on which the heat pump has been used are taken into account\n(see the settings at the top of `Calculate daily averages`).\n\n## Data\n- **State history**: exact, time-weighted. Only as far back as the recorder keeps it (`purge_keep_days`, default 10 days).\n- **Long-term statistics**: hourly mean/min/max, kept forever. Fills in the older days.\n  Only available for sensors with a `state_class`, see `heat_pump_feedforward.yaml`.\n\n## Output\n- `global.heat_pump_history` (incl. the list of days) for use in other flows\n- Home Assistant event `heat_pump_history` -> `sensor.heat_pump_history`\n\n`fit` gives the relation to the outside temperature, used as heating curve by the feedforward:\n`value = slope * outside_temp + intercept`\n\n`curve` gives the averages per whole °C outside temperature.\n\n## Subflow\n- input: recalculate now\n- output: `msg.heat_pump_history`",
+        "category": "",
+        "in": [
+            {
+                "x": 40,
+                "y": 420,
+                "wires": [
+                    {
+                        "id": "c8c1aecf46a778eb"
+                    }
+                ]
+            }
+        ],
+        "out": [
+            {
+                "x": 900,
+                "y": 120,
+                "wires": [
+                    {
+                        "id": "12470bc15a42b996",
+                        "port": 0
+                    }
+                ]
+            }
+        ],
+        "env": [],
+        "meta": {},
+        "color": "#E2D96E",
+        "icon": "font-awesome/fa-history",
+        "status": {
+            "x": 900,
+            "y": 180,
+            "wires": [
+                {
+                    "id": "12470bc15a42b996",
+                    "port": 0
+                }
+            ]
+        }
+    },
+    {
+        "type": "comment",
+        "name": "Heat Pump History (readme)",
+        "info": "# Heat pump history\n\nCalculates per day, from **all** Home Assistant history:\n- average outside temperature `sensor.sparrow_p60_heat_pump_outside_temperature`\n- average water target temperature `sensor.sparrow_p60_heat_pump_water_target_temperature`\n- average power and energy `sensor.sparrow_p60_heat_pump`\n- average COP `sensor.heatpump_cop_not_below_0`, COP = 0 is excluded\n\nOnly days on which the heat pump has been used are taken into account\n(see the settings at the top of `Calculate daily averages`).\n\n## Data\n- **State history**: exact, time-weighted. Only as far back as the recorder keeps it (`purge_keep_days`, default 10 days).\n- **Long-term statistics**: hourly mean/min/max, kept forever. Fills in the older days.\n  Only available for sensors with a `state_class`, see `heat_pump_feedforward.yaml`.\n\n## Output\n- `global.heat_pump_history` (incl. the list of days) for use in other flows\n- Home Assistant event `heat_pump_history` -> `sensor.heat_pump_history`\n\n`fit` gives the relation to the outside temperature, used as heating curve by the feedforward:\n`value = slope * outside_temp + intercept`\n\n`curve` gives the averages per whole °C outside temperature.\n\n## Subflow\n- input: recalculate now\n- output: `msg.heat_pump_history`",
+        "x": 160,
+        "y": 40,
+        "wires": [],
+        "id": "97cc30e835d6399d",
+        "z": "21df62bfd0c17be2"
+    },
+    {
+        "type": "group",
+        "name": "Trigger",
+        "style": {
+            "label": true
+        },
+        "nodes": [
+            "c9c2b3f91b34f94b"
+        ],
+        "x": 14,
+        "y": 79,
+        "w": 172,
+        "h": 122,
+        "id": "92487d0d197600bf",
+        "z": "21df62bfd0c17be2"
+    },
+    {
+        "type": "group",
+        "name": "Get all history",
+        "style": {
+            "label": true
+        },
+        "nodes": [
+            "97aee2703b8a6177",
+            "c8c1aecf46a778eb"
+        ],
+        "x": 214,
+        "y": 79,
+        "w": 232,
+        "h": 122,
+        "id": "dc8d460d15034b92",
+        "z": "21df62bfd0c17be2"
+    },
+    {
+        "type": "group",
+        "name": "Calculate",
+        "style": {
+            "label": true
+        },
+        "nodes": [
+            "12470bc15a42b996",
+            "3399b6f223767123"
+        ],
+        "x": 474,
+        "y": 79,
+        "w": 352,
+        "h": 162,
+        "id": "58f6ac0df679b818",
+        "z": "21df62bfd0c17be2"
+    },
+    {
+        "type": "function",
+        "name": "Calculate daily averages",
+        "func": "// logger, usage: log(this, \"\");\nconst log = global.get('logger');\n\n// 1.  Settings\n// A day only counts when the heat pump has actually been used on that day.\nconst MIN_RUN_POWER_W = 50;      // power above this value counts as 'running'\nconst MIN_DAY_ENERGY_KWH = 0.5;  // a day with less energy counts as 'not used'\nconst MIN_DAY_COVERAGE = 0.9;    // fraction of the day the sensors must have valid data\n\nconst ENTITY = {\n    outside: \"sensor.sparrow_p60_heat_pump_outside_temperature\",\n    water: \"sensor.sparrow_p60_heat_pump_water_target_temperature\",\n    power: \"sensor.sparrow_p60_heat_pump\",\n    cop: \"sensor.heatpump_cop_not_below_0\",\n};\n\n// 2.  Input\n// msg.history:    state history per entity_id (exact, only as far back as the recorder keeps it)\n// msg.statistics: hourly long-term statistics per entity_id (kept forever, mean/min/max per hour)\nconst history = msg.history || {};\nconst statistics = msg.statistics || {};\n\nconst DAY_MS = 86_400_000;\nconst HOUR_MS = 3_600_000;\nconst now = Date.now();\n\n// Local midnight of the day after timestamp t\nconst nextDayStart = (t) => {\n    const d = new Date(t);\n    return new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1).getTime();\n};\nconst dayKey = (t) => {\n    const d = new Date(t);\n    const pad = (v) => String(v).padStart(2, \"0\");\n    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;\n};\nconst toMs = (t) => typeof t === \"number\" ? (t < 1e12 ? t * 1000 : t) : new Date(t).getTime();\nconst round = (v, digits) => (v === null || v === undefined || !isFinite(v)) ? null : Number(v.toFixed(digits));\nconst today = dayKey(now);\n\n// 3a. State history: exact time-weighted averages\n// Convert HA states into time segments [start, end) with a numeric value.\n// A state is valid until the next state change. Unknown / unavailable states become gaps.\nfunction toSegments(states) {\n    const points = (states || [])\n        .map(s => ({\n            t: toMs(s.last_changed ?? s.lc ?? s.lu ?? s.last_updated), // full or minimal response\n            v: parseFloat(s.state ?? s.s),\n        }))\n        .filter(p => isFinite(p.t))\n        .sort((a, b) => a.t - b.t);\n\n    const segments = [];\n    points.forEach((p, i) => {\n        const end = (i < points.length - 1) ? points[i + 1].t : now;\n        if (isFinite(p.v) && end > p.t) segments.push({ start: p.t, end: end, v: p.v });\n    });\n    return segments;\n}\n\n// Split segments on local midnight and accumulate time-weighted sums per day.\n// `include` decides which values take part in the average (e.g. skip COP = 0).\nfunction historyPerDay(segments, include = () => true) {\n    const days = {};\n    segments.forEach(seg => {\n        let start = seg.start;\n        while (start < seg.end) {\n            const end = Math.min(seg.end, nextDayStart(start));\n            const day = days[dayKey(start)] ??= { sum: 0, ms: 0, covered_ms: 0, above_ms: 0 };\n            const ms = end - start;\n            day.covered_ms += ms;\n            if (include(seg.v)) {\n                day.sum += seg.v * ms;\n                day.ms += ms;\n            }\n            if (seg.v > MIN_RUN_POWER_W) day.above_ms += ms;\n            start = end;\n        }\n    });\n    return days;\n}\n\n// 3b. Long-term statistics: hourly means\n// The COP mean of an hour includes the 0 values while the heat pump is off. Hours with\n// min > 0 ran the full hour and give a clean COP; only when a day has none of those,\n// hours with mean > 0 are used (slightly too low COP).\nfunction statisticsPerDay(rows) {\n    const days = {};\n    (rows || []).forEach(r => {\n        const mean = parseFloat(r.mean);\n        if (!isFinite(mean)) return;\n        const day = days[dayKey(toMs(r.start))] ??= { hours: [] };\n        day.hours.push({ mean: mean, min: parseFloat(r.min), max: parseFloat(r.max) });\n    });\n    return days;\n}\nconst meanOf = (values) => values.length ? values.reduce((s, v) => s + v, 0) / values.length : null;\n\n// 3c. Build one row per day\nconst H = {\n    outside: historyPerDay(toSegments(history[ENTITY.outside])),\n    water: historyPerDay(toSegments(history[ENTITY.water])),\n    power: historyPerDay(toSegments(history[ENTITY.power])),\n    cop: historyPerDay(toSegments(history[ENTITY.cop]), v => v > 0), // do not average the 0 values\n};\nconst S = {\n    outside: statisticsPerDay(statistics[ENTITY.outside]),\n    water: statisticsPerDay(statistics[ENTITY.water]),\n    power: statisticsPerDay(statistics[ENTITY.power]),\n    cop: statisticsPerDay(statistics[ENTITY.cop]),\n};\n\n// Exact row from the state history, or undefined when the day is not fully covered\nfunction rowFromHistory(key) {\n    const p = H.power[key], o = H.outside[key], w = H.water[key], c = H.cop[key];\n    if (!p || !o || p.covered_ms < MIN_DAY_COVERAGE * DAY_MS || o.covered_ms < MIN_DAY_COVERAGE * DAY_MS) return undefined;\n    const powerAvg = p.sum / p.ms; // hours without data are assumed to match the measured hours\n    return {\n        date: key,\n        source: \"history\",\n        used: powerAvg * 24 / 1000 >= MIN_DAY_ENERGY_KWH && p.above_ms > 0,\n        outside_temp_avg: round(o.sum / o.ms, 1),\n        water_target_temp_avg: w && w.ms > 0 ? round(w.sum / w.ms, 1) : null,\n        power_avg: round(powerAvg, 0),\n        energy: round(powerAvg * 24 / 1000, 2),\n        running_hours: round(p.above_ms / HOUR_MS, 1),\n        cop_avg: c && c.ms > 0 ? round(c.sum / c.ms, 2) : null,\n    };\n}\n\n// Row from the hourly statistics, or undefined when the day is not fully covered\nfunction rowFromStatistics(key) {\n    const p = S.power[key], o = S.outside[key], w = S.water[key], c = S.cop[key];\n    if (!p || !o || p.hours.length < MIN_DAY_COVERAGE * 24 || o.hours.length < MIN_DAY_COVERAGE * 24) return undefined;\n    const powerAvg = meanOf(p.hours.map(h => h.mean));\n    const copHours = c ? c.hours.filter(h => h.min > 0) : [];\n    const copValues = (copHours.length ? copHours : (c ? c.hours.filter(h => h.mean > 0) : [])).map(h => h.mean);\n    return {\n        date: key,\n        source: \"statistics\",\n        used: powerAvg * 24 / 1000 >= MIN_DAY_ENERGY_KWH && p.hours.some(h => h.max > MIN_RUN_POWER_W),\n        outside_temp_avg: round(meanOf(o.hours.map(h => h.mean)), 1),\n        water_target_temp_avg: w ? round(meanOf(w.hours.map(h => h.mean)), 1) : null,\n        power_avg: round(powerAvg, 0),\n        energy: round(powerAvg * 24 / 1000, 2),\n        running_hours: p.hours.filter(h => h.mean > MIN_RUN_POWER_W).length, // approximation\n        cop_avg: round(meanOf(copValues), 2),\n    };\n}\n\n// The exact state history wins; statistics fill in the days the recorder has purged\nconst keys = new Set([...Object.keys(H.power), ...Object.keys(S.power)]);\nkeys.delete(today); // incomplete day\nconst rows = [];\nlet skipped = 0;\n[...keys].sort().forEach(key => {\n    const row = rowFromHistory(key) ?? rowFromStatistics(key);\n    if (row && row.used) {\n        delete row.used;\n        rows.push(row);\n    } else {\n        skipped++; // not used or not enough data\n    }\n});\n\nif (rows.length === 0) {\n    log(this, \"No days found on which the heat pump has been used\", \"warn\");\n    node.status({ fill: \"red\", shape: \"ring\", text: \"No usable days\" });\n    return null;\n}\n\n// 4.  Relation to the outside temperature\n// Least squares fit y = slope * outside + intercept\nfunction fit(key) {\n    const pts = rows.filter(r => r[key] !== null && r.outside_temp_avg !== null);\n    const n = pts.length;\n    if (n < 2) return null;\n    const mx = pts.reduce((s, r) => s + r.outside_temp_avg, 0) / n;\n    const my = pts.reduce((s, r) => s + r[key], 0) / n;\n    const sxx = pts.reduce((s, r) => s + (r.outside_temp_avg - mx) ** 2, 0);\n    if (sxx === 0) return null;\n    const sxy = pts.reduce((s, r) => s + (r.outside_temp_avg - mx) * (r[key] - my), 0);\n    const slope = sxy / sxx;\n    return { slope: round(slope, 3), intercept: round(my - slope * mx, 2), days: n };\n}\n\nconst average = (list, key, digits = 2) => round(meanOf(list.map(r => r[key]).filter(v => v !== null)), digits);\n\n// Averages per whole °C outside temperature\nconst bins = {};\nrows.forEach(r => (bins[Math.round(r.outside_temp_avg)] ??= []).push(r));\nconst curve = Object.keys(bins).map(Number).sort((a, b) => a - b).map(t => ({\n    outside_temp: t,\n    days: bins[t].length,\n    water_target_temp: average(bins[t], \"water_target_temp_avg\", 1),\n    power: average(bins[t], \"power_avg\", 0),\n    energy: average(bins[t], \"energy\", 2),\n    cop: average(bins[t], \"cop_avg\", 2),\n}));\n\n// 5.  Output\nconst summary = {\n    updated: new Date(now).toISOString(),\n    first_day: rows[0].date,\n    last_day: rows[rows.length - 1].date,\n    days_used: rows.length,\n    days_from_history: rows.filter(r => r.source === \"history\").length,\n    days_from_statistics: rows.filter(r => r.source === \"statistics\").length,\n    days_skipped: skipped,\n    averages: {\n        outside_temp_avg: average(rows, \"outside_temp_avg\", 1),\n        water_target_temp_avg: average(rows, \"water_target_temp_avg\", 1),\n        power_avg: average(rows, \"power_avg\", 0),\n        energy: average(rows, \"energy\", 2),\n        cop_avg: average(rows, \"cop_avg\", 2),\n    },\n    // per °C outside temperature: value = slope * outside_temp + intercept\n    fit: {\n        water_target_temp: fit(\"water_target_temp_avg\"),\n        power: fit(\"power_avg\"),\n        cop: fit(\"cop_avg\"),\n    },\n    curve: curve,\n};\n\n// Full day list stays in Node-RED, Home Assistant gets the (small) summary\nglobal.set(\"heat_pump_history\", { ...summary, days: rows });\nmsg.heat_pump_history = summary;\ndelete msg.history; // raw data is large, do not pass it on\ndelete msg.statistics;\n\nlog(this, `${rows.length} days used (${summary.first_day} .. ${summary.last_day}), ${skipped} skipped`);\nnode.status({ fill: \"green\", shape: \"dot\", text: `${rows.length} days | COP ${summary.averages.cop_avg ?? \"-\"}` });\n\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 590,
+        "y": 120,
+        "wires": [
+            [
+                "3399b6f223767123"
+            ]
+        ],
+        "id": "12470bc15a42b996",
+        "z": "21df62bfd0c17be2",
+        "g": "58f6ac0df679b818"
+    },
+    {
+        "type": "ha-api",
+        "name": "Long-term statistics",
+        "server": "176d29a.6f648d6",
+        "version": 1,
+        "debugenabled": false,
+        "protocol": "websocket",
+        "method": "get",
+        "path": "",
+        "data": "{\n    \"type\": \"recorder/statistics_during_period\",\n    \"start_time\": \"2000-01-01T00:00:00Z\",\n    \"statistic_ids\": [\n        \"sensor.sparrow_p60_heat_pump_outside_temperature\",\n        \"sensor.sparrow_p60_heat_pump_water_target_temperature\",\n        \"sensor.sparrow_p60_heat_pump\",\n        \"sensor.heatpump_cop_not_below_0\"\n    ],\n    \"period\": \"hour\",\n    \"types\": [\n        \"mean\",\n        \"min\",\n        \"max\"\n    ]\n}",
+        "dataType": "json",
+        "responseType": "json",
+        "outputProperties": [
+            {
+                "property": "statistics",
+                "propertyType": "msg",
+                "value": "",
+                "valueType": "results"
+            }
+        ],
+        "x": 330,
+        "y": 160,
+        "wires": [
+            [
+                "12470bc15a42b996"
+            ]
+        ],
+        "id": "97aee2703b8a6177",
+        "z": "21df62bfd0c17be2",
+        "g": "dc8d460d15034b92"
+    },
+    {
+        "type": "ha-api",
+        "name": "State history",
+        "server": "176d29a.6f648d6",
+        "version": 1,
+        "debugenabled": false,
+        "protocol": "websocket",
+        "method": "get",
+        "path": "",
+        "data": "{\n    \"type\": \"history/history_during_period\",\n    \"start_time\": \"2000-01-01T00:00:00Z\",\n    \"entity_ids\": [\n        \"sensor.sparrow_p60_heat_pump_outside_temperature\",\n        \"sensor.sparrow_p60_heat_pump_water_target_temperature\",\n        \"sensor.sparrow_p60_heat_pump\",\n        \"sensor.heatpump_cop_not_below_0\"\n    ],\n    \"minimal_response\": true,\n    \"no_attributes\": true,\n    \"significant_changes_only\": false\n}",
+        "dataType": "json",
+        "responseType": "json",
+        "outputProperties": [
+            {
+                "property": "history",
+                "propertyType": "msg",
+                "value": "",
+                "valueType": "results"
+            }
+        ],
+        "x": 310,
+        "y": 120,
+        "wires": [
+            [
+                "97aee2703b8a6177"
+            ]
+        ],
+        "id": "c8c1aecf46a778eb",
+        "z": "21df62bfd0c17be2",
+        "g": "dc8d460d15034b92"
+    },
+    {
+        "type": "inject",
+        "name": "Daily",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "05 00 * * *",
+        "once": true,
+        "onceDelay": "10",
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 100,
+        "y": 120,
+        "wires": [
+            [
+                "c8c1aecf46a778eb"
+            ]
+        ],
+        "id": "c9c2b3f91b34f94b",
+        "z": "21df62bfd0c17be2",
+        "g": "92487d0d197600bf"
+    },
+    {
+        "type": "ha-fire-event",
+        "name": "Heat pump history",
+        "server": "176d29a.6f648d6",
+        "version": 0,
+        "event": "heat_pump_history",
+        "data": "msg.heat_pump_history",
+        "dataType": "jsonata",
+        "x": 740,
+        "y": 120,
+        "wires": [
+            []
+        ],
+        "id": "3399b6f223767123",
+        "z": "21df62bfd0c17be2",
+        "g": "58f6ac0df679b818"
+    },
+    {
+        "type": "group",
+        "name": "Unhandled exceptions",
+        "style": {
+            "label": true
+        },
+        "nodes": [
+            "ccd18d3a2ae5fec0",
+            "53bf4467b097f752",
+            "d6062b0d705baf51"
+        ],
+        "x": 14,
+        "y": 279,
+        "w": 252,
+        "h": 82,
+        "id": "aad8039beb2bfec9",
+        "z": "21df62bfd0c17be2"
+    },
+    {
+        "type": "debug",
+        "name": "Errors",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 230,
+        "y": 320,
+        "wires": [],
+        "id": "ccd18d3a2ae5fec0",
+        "z": "21df62bfd0c17be2",
+        "g": "aad8039beb2bfec9"
+    },
+    {
+        "type": "function",
+        "name": "Unhandled Exception",
+        "func": "// Log unhandled exception\nconst handle = global.get('unhandledException');\nif(handle) handle(this);\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 150,
+        "y": 320,
+        "wires": [
+            [
+                "ccd18d3a2ae5fec0"
+            ]
+        ],
+        "id": "53bf4467b097f752",
+        "z": "21df62bfd0c17be2",
+        "g": "aad8039beb2bfec9"
+    },
+    {
+        "type": "catch",
+        "name": "",
+        "scope": null,
+        "uncaught": false,
+        "x": 65,
+        "y": 320,
+        "wires": [
+            [
+                "53bf4467b097f752"
+            ]
+        ],
+        "id": "d6062b0d705baf51",
+        "z": "21df62bfd0c17be2",
+        "g": "aad8039beb2bfec9"
+    },
+    {
+        "id": "624baa97b06a5041",
+        "type": "subflow",
+        "name": "Heat pump feedforward",
+        "info": "# Heat pump feedforward\n\nCalculates the feedforward water temperature from the current outside temperature:\n`water_temp = slope * outside_temp + intercept`, limited to the min / max water temperature.\n\n## Heating curve\nSelect with `input_select.heat_pump_feedforward_source`:\n- **Manual**: `input_number.heat_pump_feedforward_manual_slope` / `_manual_intercept`\n- **History**: the curve calculated by the `Heat Pump History` flow. Falls back to Manual\n  as long as the history has not been calculated.\n\n## Simple day schedule (mild weather)\nBelow 24 °C water temperature the curve is replaced by a simple schedule, effective when\nthe 24h average outside temperature >= `input_number.heat_pump_feedforward_simple_outside_temperature`:\n- heat at 24 °C from `input_datetime.heat_pump_feedforward_simple_start_time` (default midnight)\n- stop for the rest of the day once `sensor.heat_pump_inside_temperature`\n  >= `input_number.heat_pump_feedforward_simple_stop_inside_temperature`\n- `heating` is false while stopped: switch the heat pump off\n\n## Outside temperature\nSelect with `input_select.heat_pump_feedforward_outside_source`:\n- **Current**: the heat pump outside temperature, and the 24h average for the simple schedule\n- **Forecast**: Met.no hourly forecast (`weather.forecast_home`), fetched every 30 minutes\n  - heating curve: average forecast over `window` hours, starting `lead time` hours ahead,\n    mixed with the current temperature by `weight` (100 % = forecast only)\n  - simple schedule: average forecast over the next `simple forecast hours`\n  - bias correction: shift the forecast by (measured - forecast) right now\n  - falls back to Current when no forecast of the last 3 hours is available\n\n## Output\n- `global.heat_pump_feedforward` for use in other flows\n- Home Assistant event `heat_pump_feedforward` -> `sensor.heat_pump_feedforward_water_temperature`\n  and `binary_sensor.heat_pump_feedforward_heating`\n\n## Subflow\n- input: recalculate now\n- output: `msg.feedforward` on every calculation, connect your heat pump control here",
+        "category": "",
+        "in": [
+            {
+                "x": 40,
+                "y": 980,
+                "wires": [
+                    {
+                        "id": "3bed5c43fbcf1646"
+                    }
+                ]
+            }
+        ],
+        "out": [
+            {
+                "x": 1020,
+                "y": 120,
+                "wires": [
+                    {
+                        "id": "1af7426268166ba5",
+                        "port": 0
+                    }
+                ]
+            }
+        ],
+        "env": [],
+        "meta": {},
+        "color": "#E7E7AE",
+        "icon": "font-awesome/fa-thermometer-half",
+        "status": {
+            "x": 1020,
+            "y": 180,
+            "wires": [
+                {
+                    "id": "1af7426268166ba5",
+                    "port": 0
+                }
+            ]
+        }
+    },
+    {
+        "type": "comment",
         "name": "Heat Pump Feedforward (readme)",
-        "info": "# Heat pump feedforward\n\nCalculates the feedforward water temperature from the current outside temperature:\n`water_temp = slope * outside_temp + intercept`, limited to the min / max water temperature.\n\n## Heating curve\nSelect with `input_select.heat_pump_feedforward_source`:\n- **Manual**: `input_number.heat_pump_feedforward_manual_slope` / `_manual_intercept`\n- **History**: the curve calculated by the `Heat Pump History` flow. Falls back to Manual\n  as long as the history has not been calculated.\n\n## Simple day schedule (mild weather)\nBelow 24 °C water temperature the curve is replaced by a simple schedule, effective when\nthe 24h average outside temperature >= `input_number.heat_pump_feedforward_simple_outside_temperature`:\n- heat at 24 °C from `input_datetime.heat_pump_feedforward_simple_start_time` (default midnight)\n- stop for the rest of the day once `sensor.heat_pump_inside_temperature`\n  >= `input_number.heat_pump_feedforward_simple_stop_inside_temperature`\n- `heating` is false while stopped: switch the heat pump off\n\n## Outside temperature\nSelect with `input_select.heat_pump_feedforward_outside_source`:\n- **Current**: the heat pump outside temperature, and the 24h average for the simple schedule\n- **Forecast**: Met.no hourly forecast (`weather.forecast_home`), fetched every 30 minutes\n  - heating curve: average forecast over `window` hours, starting `lead time` hours ahead,\n    mixed with the current temperature by `weight` (100 % = forecast only)\n  - simple schedule: average forecast over the next `simple forecast hours`\n  - bias correction: shift the forecast by (measured - forecast) right now\n  - falls back to Current when no forecast of the last 3 hours is available\n\n## Output\n- `global.heat_pump_feedforward` for use in other flows\n- Home Assistant event `heat_pump_feedforward` -> `sensor.heat_pump_feedforward_water_temperature`\n  and `binary_sensor.heat_pump_feedforward_heating`",
+        "info": "# Heat pump feedforward\n\nCalculates the feedforward water temperature from the current outside temperature:\n`water_temp = slope * outside_temp + intercept`, limited to the min / max water temperature.\n\n## Heating curve\nSelect with `input_select.heat_pump_feedforward_source`:\n- **Manual**: `input_number.heat_pump_feedforward_manual_slope` / `_manual_intercept`\n- **History**: the curve calculated by the `Heat Pump History` flow. Falls back to Manual\n  as long as the history has not been calculated.\n\n## Simple day schedule (mild weather)\nBelow 24 °C water temperature the curve is replaced by a simple schedule, effective when\nthe 24h average outside temperature >= `input_number.heat_pump_feedforward_simple_outside_temperature`:\n- heat at 24 °C from `input_datetime.heat_pump_feedforward_simple_start_time` (default midnight)\n- stop for the rest of the day once `sensor.heat_pump_inside_temperature`\n  >= `input_number.heat_pump_feedforward_simple_stop_inside_temperature`\n- `heating` is false while stopped: switch the heat pump off\n\n## Outside temperature\nSelect with `input_select.heat_pump_feedforward_outside_source`:\n- **Current**: the heat pump outside temperature, and the 24h average for the simple schedule\n- **Forecast**: Met.no hourly forecast (`weather.forecast_home`), fetched every 30 minutes\n  - heating curve: average forecast over `window` hours, starting `lead time` hours ahead,\n    mixed with the current temperature by `weight` (100 % = forecast only)\n  - simple schedule: average forecast over the next `simple forecast hours`\n  - bias correction: shift the forecast by (measured - forecast) right now\n  - falls back to Current when no forecast of the last 3 hours is available\n\n## Output\n- `global.heat_pump_feedforward` for use in other flows\n- Home Assistant event `heat_pump_feedforward` -> `sensor.heat_pump_feedforward_water_temperature`\n  and `binary_sensor.heat_pump_feedforward_heating`\n\n## Subflow\n- input: recalculate now\n- output: `msg.feedforward` on every calculation, connect your heat pump control here",
         "x": 160,
         "y": 40,
         "wires": [],
         "id": "1e7d9319fd2199d8",
-        "z": "30c1cadb3f5445db"
+        "z": "624baa97b06a5041"
     },
     {
         "type": "group",
@@ -33,7 +521,7 @@
         "w": 312,
         "h": 122,
         "id": "7b5ee698cac28b91",
-        "z": "30c1cadb3f5445db"
+        "z": "624baa97b06a5041"
     },
     {
         "type": "group",
@@ -65,7 +553,7 @@
         "w": 232,
         "h": 722,
         "id": "9326d2530a306320",
-        "z": "30c1cadb3f5445db"
+        "z": "624baa97b06a5041"
     },
     {
         "type": "group",
@@ -75,15 +563,14 @@
         },
         "nodes": [
             "1af7426268166ba5",
-            "200bc9ff4177f8a6",
-            "c8cdccbeff884117"
+            "200bc9ff4177f8a6"
         ],
         "x": 614,
         "y": 79,
         "w": 352,
         "h": 162,
         "id": "d51727478b63d37b",
-        "z": "30c1cadb3f5445db"
+        "z": "624baa97b06a5041"
     },
     {
         "type": "function",
@@ -99,12 +586,11 @@
         "y": 120,
         "wires": [
             [
-                "200bc9ff4177f8a6",
-                "c8cdccbeff884117"
+                "200bc9ff4177f8a6"
             ]
         ],
         "id": "1af7426268166ba5",
-        "z": "30c1cadb3f5445db",
+        "z": "624baa97b06a5041",
         "g": "d51727478b63d37b"
     },
     {
@@ -155,7 +641,7 @@
             ]
         ],
         "id": "339fd4c36f00fde7",
-        "z": "30c1cadb3f5445db",
+        "z": "624baa97b06a5041",
         "g": "9326d2530a306320"
     },
     {
@@ -206,7 +692,7 @@
             ]
         ],
         "id": "bc42dbb6eefe60f2",
-        "z": "30c1cadb3f5445db",
+        "z": "624baa97b06a5041",
         "g": "9326d2530a306320"
     },
     {
@@ -257,7 +743,7 @@
             ]
         ],
         "id": "14e5ac09c729b91c",
-        "z": "30c1cadb3f5445db",
+        "z": "624baa97b06a5041",
         "g": "9326d2530a306320"
     },
     {
@@ -308,7 +794,7 @@
             ]
         ],
         "id": "fcd6426b18d24ce3",
-        "z": "30c1cadb3f5445db",
+        "z": "624baa97b06a5041",
         "g": "9326d2530a306320"
     },
     {
@@ -359,7 +845,7 @@
             ]
         ],
         "id": "801cc708e62802ce",
-        "z": "30c1cadb3f5445db",
+        "z": "624baa97b06a5041",
         "g": "9326d2530a306320"
     },
     {
@@ -410,7 +896,7 @@
             ]
         ],
         "id": "6f0bc14b000ff2a6",
-        "z": "30c1cadb3f5445db",
+        "z": "624baa97b06a5041",
         "g": "9326d2530a306320"
     },
     {
@@ -461,7 +947,7 @@
             ]
         ],
         "id": "128e972ed7ba3ed4",
-        "z": "30c1cadb3f5445db",
+        "z": "624baa97b06a5041",
         "g": "9326d2530a306320"
     },
     {
@@ -512,7 +998,7 @@
             ]
         ],
         "id": "2135a6c2eb7371e7",
-        "z": "30c1cadb3f5445db",
+        "z": "624baa97b06a5041",
         "g": "9326d2530a306320"
     },
     {
@@ -563,7 +1049,7 @@
             ]
         ],
         "id": "851bbc4f893f44f0",
-        "z": "30c1cadb3f5445db",
+        "z": "624baa97b06a5041",
         "g": "9326d2530a306320"
     },
     {
@@ -614,7 +1100,7 @@
             ]
         ],
         "id": "c0a55e3b85cafd7e",
-        "z": "30c1cadb3f5445db",
+        "z": "624baa97b06a5041",
         "g": "9326d2530a306320"
     },
     {
@@ -665,7 +1151,7 @@
             ]
         ],
         "id": "6c85a2d0f94b9418",
-        "z": "30c1cadb3f5445db",
+        "z": "624baa97b06a5041",
         "g": "9326d2530a306320"
     },
     {
@@ -716,7 +1202,7 @@
             ]
         ],
         "id": "d3aa92a7f2f49ced",
-        "z": "30c1cadb3f5445db",
+        "z": "624baa97b06a5041",
         "g": "9326d2530a306320"
     },
     {
@@ -767,7 +1253,7 @@
             ]
         ],
         "id": "6b0111110de2dc26",
-        "z": "30c1cadb3f5445db",
+        "z": "624baa97b06a5041",
         "g": "9326d2530a306320"
     },
     {
@@ -818,7 +1304,7 @@
             ]
         ],
         "id": "19bffb623a389680",
-        "z": "30c1cadb3f5445db",
+        "z": "624baa97b06a5041",
         "g": "9326d2530a306320"
     },
     {
@@ -869,7 +1355,7 @@
             ]
         ],
         "id": "b022adda0d5f0cee",
-        "z": "30c1cadb3f5445db",
+        "z": "624baa97b06a5041",
         "g": "9326d2530a306320"
     },
     {
@@ -920,7 +1406,7 @@
             ]
         ],
         "id": "accc03992ae42663",
-        "z": "30c1cadb3f5445db",
+        "z": "624baa97b06a5041",
         "g": "9326d2530a306320"
     },
     {
@@ -971,7 +1457,7 @@
             ]
         ],
         "id": "0c86fb739462581f",
-        "z": "30c1cadb3f5445db",
+        "z": "624baa97b06a5041",
         "g": "9326d2530a306320"
     },
     {
@@ -992,7 +1478,7 @@
             ]
         ],
         "id": "3bed5c43fbcf1646",
-        "z": "30c1cadb3f5445db",
+        "z": "624baa97b06a5041",
         "g": "7b5ee698cac28b91"
     },
     {
@@ -1022,7 +1508,7 @@
             ]
         ],
         "id": "736a2fb822439a46",
-        "z": "30c1cadb3f5445db",
+        "z": "624baa97b06a5041",
         "g": "7b5ee698cac28b91"
     },
     {
@@ -1042,7 +1528,7 @@
         "w": 312,
         "h": 162,
         "id": "d2939b7cf9bdd0eb",
-        "z": "30c1cadb3f5445db"
+        "z": "624baa97b06a5041"
     },
     {
         "type": "function",
@@ -1062,7 +1548,7 @@
             ]
         ],
         "id": "e2dbc390e59da5d7",
-        "z": "30c1cadb3f5445db",
+        "z": "624baa97b06a5041",
         "g": "d2939b7cf9bdd0eb"
     },
     {
@@ -1080,7 +1566,7 @@
         "y": 360,
         "wires": [],
         "id": "741a2d440a256058",
-        "z": "30c1cadb3f5445db",
+        "z": "624baa97b06a5041",
         "g": "d2939b7cf9bdd0eb"
     },
     {
@@ -1122,7 +1608,7 @@
             ]
         ],
         "id": "5c224ddea6992867",
-        "z": "30c1cadb3f5445db",
+        "z": "624baa97b06a5041",
         "g": "d2939b7cf9bdd0eb"
     },
     {
@@ -1152,7 +1638,7 @@
             ]
         ],
         "id": "0c62f69a9176d4ea",
-        "z": "30c1cadb3f5445db",
+        "z": "624baa97b06a5041",
         "g": "d2939b7cf9bdd0eb"
     },
     {
@@ -1228,7 +1714,7 @@
             ]
         ],
         "id": "30bacea97f98e963",
-        "z": "30c1cadb3f5445db",
+        "z": "624baa97b06a5041",
         "g": "7b5ee698cac28b91"
     },
     {
@@ -1245,25 +1731,7 @@
             []
         ],
         "id": "200bc9ff4177f8a6",
-        "z": "30c1cadb3f5445db",
-        "g": "d51727478b63d37b"
-    },
-    {
-        "type": "debug",
-        "name": "Feedforward",
-        "active": false,
-        "tosidebar": true,
-        "console": false,
-        "tostatus": false,
-        "complete": "feedforward",
-        "targetType": "msg",
-        "statusVal": "",
-        "statusType": "auto",
-        "x": 860,
-        "y": 200,
-        "wires": [],
-        "id": "c8cdccbeff884117",
-        "z": "30c1cadb3f5445db",
+        "z": "624baa97b06a5041",
         "g": "d51727478b63d37b"
     },
     {
@@ -1282,7 +1750,7 @@
         "w": 252,
         "h": 82,
         "id": "ea4768efe78f4b4f",
-        "z": "30c1cadb3f5445db"
+        "z": "624baa97b06a5041"
     },
     {
         "type": "debug",
@@ -1299,7 +1767,7 @@
         "y": 880,
         "wires": [],
         "id": "4d9c58bfbe56084a",
-        "z": "30c1cadb3f5445db",
+        "z": "624baa97b06a5041",
         "g": "ea4768efe78f4b4f"
     },
     {
@@ -1320,7 +1788,7 @@
             ]
         ],
         "id": "07f7c8b9e829f792",
-        "z": "30c1cadb3f5445db",
+        "z": "624baa97b06a5041",
         "g": "ea4768efe78f4b4f"
     },
     {
@@ -1336,7 +1804,7 @@
             ]
         ],
         "id": "518ae76f032fbbbe",
-        "z": "30c1cadb3f5445db",
+        "z": "624baa97b06a5041",
         "g": "ea4768efe78f4b4f"
     },
     {
@@ -1354,7 +1822,7 @@
         "enableGlobalContextStore": false
     },
     {
-        "id": "04d481a3af3fd8f1",
+        "id": "f06a9422c6184d3a",
         "type": "global-config",
         "env": [],
         "modules": {

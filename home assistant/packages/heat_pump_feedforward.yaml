@@ -1,6 +1,6 @@
 # This file contains the entities of the personal heat pump feedforward.
 # It should be included in the main configuration.yaml file as a `package` via `!include_dir_named` https://www.home-assistant.io/docs/configuration/packages/.
-# Used by the Node-RED flows `node-red/personal/03 heat-pump-history.json` and `03 heat-pump-feedforward.json`.
+# Used by the Node-RED flow `node-red/personal/03 heat-pump.json` (subflows `Heat pump history` and `Heat pump feedforward`).
 
 ###########################################################################################################
 # LONG-TERM STATISTICS
