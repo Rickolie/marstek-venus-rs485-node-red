@@ -1,0 +1,17 @@
+# This file contains the entities of the personal boiler control.
+# It should be included in the main configuration.yaml file as a `package` via `!include_dir_named` https://www.home-assistant.io/docs/configuration/packages/.
+# Used by the Node-RED flow `node-red/personal/03 boiler.json`. Thresholds are in its `Settings` node.
+
+###########################################################################################################
+# INPUT_BOOLEAN
+###########################################################################################################
+input_boolean:
+  # Off: the boiler flow does not switch anything (replaces global.boilerV3)
+  boiler_control_enabled:
+    name: "Boiler control"
+    icon: mdi:water-boiler
+
+  # Off: the doorstroomboiler is kept off, the boiler is heated by solar (element) and the heat pump only
+  boiler_use_instant_boiler:
+    name: "Use doorstroomboiler"
+    icon: mdi:water-boiler-auto

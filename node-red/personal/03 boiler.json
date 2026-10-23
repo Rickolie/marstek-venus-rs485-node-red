@@ -1,0 +1,2437 @@
+[
+    {
+        "id": "314bf14cc3edfa41",
+        "type": "tab",
+        "label": "Boiler",
+        "disabled": false,
+        "info": "Boiler: solar, legionella, doorstroomboiler and heat exchanger valve",
+        "env": []
+    },
+    {
+        "type": "comment",
+        "name": "Boiler (readme)",
+        "info": "# Boiler\n\nEvery minute, when `input_boolean.boiler_control_enabled` is on. Each step is a group:\n\n1. **Input**: sensors, switches and `Settings` (thresholds, valve set points, Telegram chat)\n2. **Boiler element** `switch.sonoff_10023c6bdb`:\n   - legionella run (every Sunday 11:00, also without sun), or\n   - expected solar power next hour > `solar_threshold` and not on holiday\n   - until `max_temp`. Once off, it only restarts below `max_temp - restart_hysteresis`\n   - reaching `max_temp` ends the legionella run (`global.legionella` false)\n3. **Doorstroomboiler** `switch.sonoff_1002736ed7`, only with `input_boolean.boiler_use_instant_boiler` on\n   (off: kept off). On below `instant_below` °C boiler temperature, unless the element heats:\n   never both on\n4. **Heat exchanger valve** `climate.heatexchanger_valve_thermostat`: CV water warmer than the boiler -> open\n   (heat pump heats the boiler), otherwise closed (boiler does not lose heat to the CV)\n5. **Output**: switches off first, 1 s later on. Only switches that need to change\n6. **Alerts**: Telegram message when a sensor or switch is unavailable (max 1 per day, valve 1 per 3 h)\n\nBoiler temperature unavailable: nothing is switched, only the alert is sent.",
+        "x": 120,
+        "y": 40,
+        "wires": [],
+        "id": "34d35f99343f0a3c",
+        "z": "314bf14cc3edfa41"
+    },
+    {
+        "type": "group",
+        "name": "Trigger",
+        "style": {
+            "label": true
+        },
+        "nodes": [
+            "70b49d19689b2c08",
+            "f4fe549fe52e60f5",
+            "361df40e0a918c96",
+            "ea5a6bab590a8d77"
+        ],
+        "x": 17,
+        "y": 79,
+        "w": 448,
+        "h": 132,
+        "id": "4b218a2c3b391003",
+        "z": "314bf14cc3edfa41"
+    },
+    {
+        "type": "function",
+        "name": "Init",
+        "func": "// Init\nmsg.boiler = {};\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 290,
+        "y": 120,
+        "wires": [
+            [
+                "087d0bc468803000"
+            ]
+        ],
+        "id": "70b49d19689b2c08",
+        "z": "314bf14cc3edfa41",
+        "g": "4b218a2c3b391003"
+    },
+    {
+        "type": "inject",
+        "name": "Every minute",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "60",
+        "crontab": "",
+        "once": true,
+        "onceDelay": "10",
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 120,
+        "y": 120,
+        "wires": [
+            [
+                "70b49d19689b2c08"
+            ]
+        ],
+        "id": "f4fe549fe52e60f5",
+        "z": "314bf14cc3edfa41",
+        "g": "4b218a2c3b391003"
+    },
+    {
+        "type": "change",
+        "name": "Start legionella run",
+        "rules": [
+            {
+                "t": "set",
+                "p": "legionella",
+                "pt": "flow",
+                "to": "true",
+                "tot": "bool"
+            },
+            {
+                "t": "set",
+                "p": "legionella",
+                "pt": "global",
+                "to": "true",
+                "tot": "bool"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 330,
+        "y": 180,
+        "wires": [
+            [
+                "70b49d19689b2c08"
+            ]
+        ],
+        "id": "361df40e0a918c96",
+        "z": "314bf14cc3edfa41",
+        "g": "4b218a2c3b391003"
+    },
+    {
+        "type": "inject",
+        "name": "Sunday 11:00",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "00 11 * * 0",
+        "once": false,
+        "onceDelay": "10",
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 120,
+        "y": 180,
+        "wires": [
+            [
+                "361df40e0a918c96"
+            ]
+        ],
+        "id": "ea5a6bab590a8d77",
+        "z": "314bf14cc3edfa41",
+        "g": "4b218a2c3b391003"
+    },
+    {
+        "type": "group",
+        "name": "Input",
+        "style": {
+            "label": true
+        },
+        "nodes": [
+            "087d0bc468803000",
+            "9f9a87d69f7bf987",
+            "48eaf67066e86f70",
+            "cd0be9e83c523aec",
+            "b7d9b90fe769fafc",
+            "6e4a7bef0fcb1fc9",
+            "d257df31872c500b",
+            "ca54d5cea70138b2",
+            "c1c87cfa470d5213",
+            "0d22ef2bfd8b81fe",
+            "7b8d4496f547b32b",
+            "432c92200950bb8e"
+        ],
+        "x": 385,
+        "y": 59,
+        "w": 665,
+        "h": 472,
+        "id": "542721ba2d2d2e5d",
+        "z": "314bf14cc3edfa41"
+    },
+    {
+        "type": "api-current-state",
+        "name": "Control enabled",
+        "server": "5ca87be2.7c7d84",
+        "version": 3,
+        "outputs": 1,
+        "halt_if": "",
+        "halt_if_type": "str",
+        "halt_if_compare": "is",
+        "entity_id": "input_boolean.boiler_control_enabled",
+        "state_type": "str",
+        "blockInputOverrides": true,
+        "outputProperties": [
+            {
+                "property": "payload",
+                "propertyType": "msg",
+                "value": "string",
+                "valueType": "entityState"
+            },
+            {
+                "property": "boiler.enabled",
+                "propertyType": "msg",
+                "value": "string",
+                "valueType": "entityState"
+            }
+        ],
+        "for": "0",
+        "forType": "num",
+        "forUnits": "minutes",
+        "override_topic": false,
+        "state_location": "payload",
+        "override_payload": "msg",
+        "entity_location": "data",
+        "override_data": "msg",
+        "x": 560,
+        "y": 100,
+        "wires": [
+            [
+                "9f9a87d69f7bf987"
+            ]
+        ],
+        "id": "087d0bc468803000",
+        "z": "314bf14cc3edfa41",
+        "g": "542721ba2d2d2e5d"
+    },
+    {
+        "type": "api-current-state",
+        "name": "Use doorstroomboiler",
+        "server": "5ca87be2.7c7d84",
+        "version": 3,
+        "outputs": 1,
+        "halt_if": "",
+        "halt_if_type": "str",
+        "halt_if_compare": "is",
+        "entity_id": "input_boolean.boiler_use_instant_boiler",
+        "state_type": "str",
+        "blockInputOverrides": true,
+        "outputProperties": [
+            {
+                "property": "payload",
+                "propertyType": "msg",
+                "value": "string",
+                "valueType": "entityState"
+            },
+            {
+                "property": "boiler.use_instant",
+                "propertyType": "msg",
+                "value": "string",
+                "valueType": "entityState"
+            }
+        ],
+        "for": "0",
+        "forType": "num",
+        "forUnits": "minutes",
+        "override_topic": false,
+        "state_location": "payload",
+        "override_payload": "msg",
+        "entity_location": "data",
+        "override_data": "msg",
+        "x": 560,
+        "y": 140,
+        "wires": [
+            [
+                "48eaf67066e86f70"
+            ]
+        ],
+        "id": "9f9a87d69f7bf987",
+        "z": "314bf14cc3edfa41",
+        "g": "542721ba2d2d2e5d"
+    },
+    {
+        "type": "api-current-state",
+        "name": "On holiday",
+        "server": "5ca87be2.7c7d84",
+        "version": 3,
+        "outputs": 1,
+        "halt_if": "",
+        "halt_if_type": "str",
+        "halt_if_compare": "is",
+        "entity_id": "input_boolean.onholiday",
+        "state_type": "str",
+        "blockInputOverrides": true,
+        "outputProperties": [
+            {
+                "property": "payload",
+                "propertyType": "msg",
+                "value": "string",
+                "valueType": "entityState"
+            },
+            {
+                "property": "boiler.holiday",
+                "propertyType": "msg",
+                "value": "string",
+                "valueType": "entityState"
+            }
+        ],
+        "for": "0",
+        "forType": "num",
+        "forUnits": "minutes",
+        "override_topic": false,
+        "state_location": "payload",
+        "override_payload": "msg",
+        "entity_location": "data",
+        "override_data": "msg",
+        "x": 560,
+        "y": 180,
+        "wires": [
+            [
+                "cd0be9e83c523aec"
+            ]
+        ],
+        "id": "48eaf67066e86f70",
+        "z": "314bf14cc3edfa41",
+        "g": "542721ba2d2d2e5d"
+    },
+    {
+        "type": "api-current-state",
+        "name": "Expected solar power next hour",
+        "server": "5ca87be2.7c7d84",
+        "version": 3,
+        "outputs": 1,
+        "halt_if": "",
+        "halt_if_type": "str",
+        "halt_if_compare": "is",
+        "entity_id": "sensor.power_production_next_hour",
+        "state_type": "str",
+        "blockInputOverrides": true,
+        "outputProperties": [
+            {
+                "property": "payload",
+                "propertyType": "msg",
+                "value": "string",
+                "valueType": "entityState"
+            },
+            {
+                "property": "boiler.solar_next_hour",
+                "propertyType": "msg",
+                "value": "number",
+                "valueType": "entityState"
+            }
+        ],
+        "for": "0",
+        "forType": "num",
+        "forUnits": "minutes",
+        "override_topic": false,
+        "state_location": "payload",
+        "override_payload": "msg",
+        "entity_location": "data",
+        "override_data": "msg",
+        "x": 560,
+        "y": 220,
+        "wires": [
+            [
+                "b7d9b90fe769fafc"
+            ]
+        ],
+        "id": "cd0be9e83c523aec",
+        "z": "314bf14cc3edfa41",
+        "g": "542721ba2d2d2e5d"
+    },
+    {
+        "type": "api-current-state",
+        "name": "Boiler temperature",
+        "server": "5ca87be2.7c7d84",
+        "version": 3,
+        "outputs": 1,
+        "halt_if": "",
+        "halt_if_type": "str",
+        "halt_if_compare": "is",
+        "entity_id": "sensor.thermostat_heatexchanger_w_offset",
+        "state_type": "str",
+        "blockInputOverrides": true,
+        "outputProperties": [
+            {
+                "property": "payload",
+                "propertyType": "msg",
+                "value": "string",
+                "valueType": "entityState"
+            },
+            {
+                "property": "boiler.temp",
+                "propertyType": "msg",
+                "value": "number",
+                "valueType": "entityState"
+            },
+            {
+                "property": "boiler.temp_state",
+                "propertyType": "msg",
+                "value": "string",
+                "valueType": "entityState"
+            },
+            {
+                "property": "boiler_temp",
+                "propertyType": "global",
+                "value": "number",
+                "valueType": "entityState"
+            }
+        ],
+        "for": "0",
+        "forType": "num",
+        "forUnits": "minutes",
+        "override_topic": false,
+        "state_location": "payload",
+        "override_payload": "msg",
+        "entity_location": "data",
+        "override_data": "msg",
+        "x": 560,
+        "y": 260,
+        "wires": [
+            [
+                "6e4a7bef0fcb1fc9"
+            ]
+        ],
+        "id": "b7d9b90fe769fafc",
+        "z": "314bf14cc3edfa41",
+        "g": "542721ba2d2d2e5d"
+    },
+    {
+        "type": "api-current-state",
+        "name": "CV return temperature",
+        "server": "5ca87be2.7c7d84",
+        "version": 3,
+        "outputs": 1,
+        "halt_if": "",
+        "halt_if_type": "str",
+        "halt_if_compare": "is",
+        "entity_id": "sensor.diyless_thermostat_1_ch_return_temperature",
+        "state_type": "str",
+        "blockInputOverrides": true,
+        "outputProperties": [
+            {
+                "property": "payload",
+                "propertyType": "msg",
+                "value": "string",
+                "valueType": "entityState"
+            },
+            {
+                "property": "boiler.cv_temp",
+                "propertyType": "msg",
+                "value": "number",
+                "valueType": "entityState"
+            },
+            {
+                "property": "boiler.cv_state",
+                "propertyType": "msg",
+                "value": "string",
+                "valueType": "entityState"
+            }
+        ],
+        "for": "0",
+        "forType": "num",
+        "forUnits": "minutes",
+        "override_topic": false,
+        "state_location": "payload",
+        "override_payload": "msg",
+        "entity_location": "data",
+        "override_data": "msg",
+        "x": 560,
+        "y": 300,
+        "wires": [
+            [
+                "d257df31872c500b"
+            ]
+        ],
+        "id": "6e4a7bef0fcb1fc9",
+        "z": "314bf14cc3edfa41",
+        "g": "542721ba2d2d2e5d"
+    },
+    {
+        "type": "api-current-state",
+        "name": "Boiler element",
+        "server": "5ca87be2.7c7d84",
+        "version": 3,
+        "outputs": 1,
+        "halt_if": "",
+        "halt_if_type": "str",
+        "halt_if_compare": "is",
+        "entity_id": "switch.sonoff_10023c6bdb",
+        "state_type": "str",
+        "blockInputOverrides": true,
+        "outputProperties": [
+            {
+                "property": "payload",
+                "propertyType": "msg",
+                "value": "string",
+                "valueType": "entityState"
+            },
+            {
+                "property": "boiler.element_state",
+                "propertyType": "msg",
+                "value": "string",
+                "valueType": "entityState"
+            }
+        ],
+        "for": "0",
+        "forType": "num",
+        "forUnits": "minutes",
+        "override_topic": false,
+        "state_location": "payload",
+        "override_payload": "msg",
+        "entity_location": "data",
+        "override_data": "msg",
+        "x": 560,
+        "y": 340,
+        "wires": [
+            [
+                "ca54d5cea70138b2"
+            ]
+        ],
+        "id": "d257df31872c500b",
+        "z": "314bf14cc3edfa41",
+        "g": "542721ba2d2d2e5d"
+    },
+    {
+        "type": "api-current-state",
+        "name": "Doorstroomboiler",
+        "server": "5ca87be2.7c7d84",
+        "version": 3,
+        "outputs": 1,
+        "halt_if": "",
+        "halt_if_type": "str",
+        "halt_if_compare": "is",
+        "entity_id": "switch.sonoff_1002736ed7",
+        "state_type": "str",
+        "blockInputOverrides": true,
+        "outputProperties": [
+            {
+                "property": "payload",
+                "propertyType": "msg",
+                "value": "string",
+                "valueType": "entityState"
+            },
+            {
+                "property": "boiler.instant_state",
+                "propertyType": "msg",
+                "value": "string",
+                "valueType": "entityState"
+            }
+        ],
+        "for": "0",
+        "forType": "num",
+        "forUnits": "minutes",
+        "override_topic": false,
+        "state_location": "payload",
+        "override_payload": "msg",
+        "entity_location": "data",
+        "override_data": "msg",
+        "x": 560,
+        "y": 380,
+        "wires": [
+            [
+                "c1c87cfa470d5213"
+            ]
+        ],
+        "id": "ca54d5cea70138b2",
+        "z": "314bf14cc3edfa41",
+        "g": "542721ba2d2d2e5d"
+    },
+    {
+        "type": "api-current-state",
+        "name": "Heat exchanger valve",
+        "server": "5ca87be2.7c7d84",
+        "version": 3,
+        "outputs": 1,
+        "halt_if": "",
+        "halt_if_type": "str",
+        "halt_if_compare": "is",
+        "entity_id": "climate.heatexchanger_valve_thermostat",
+        "state_type": "str",
+        "blockInputOverrides": true,
+        "outputProperties": [
+            {
+                "property": "payload",
+                "propertyType": "msg",
+                "value": "string",
+                "valueType": "entityState"
+            },
+            {
+                "property": "boiler.valve",
+                "propertyType": "msg",
+                "value": "",
+                "valueType": "entity"
+            }
+        ],
+        "for": "0",
+        "forType": "num",
+        "forUnits": "minutes",
+        "override_topic": false,
+        "state_location": "payload",
+        "override_payload": "msg",
+        "entity_location": "data",
+        "override_data": "msg",
+        "x": 560,
+        "y": 420,
+        "wires": [
+            [
+                "0d22ef2bfd8b81fe"
+            ]
+        ],
+        "id": "c1c87cfa470d5213",
+        "z": "314bf14cc3edfa41",
+        "g": "542721ba2d2d2e5d"
+    },
+    {
+        "type": "change",
+        "name": "Settings",
+        "rules": [
+            {
+                "t": "set",
+                "p": "boiler.solar_threshold",
+                "pt": "msg",
+                "to": "3000",
+                "tot": "num"
+            },
+            {
+                "t": "set",
+                "p": "boiler.max_temp",
+                "pt": "msg",
+                "to": "60",
+                "tot": "num"
+            },
+            {
+                "t": "set",
+                "p": "boiler.restart_hysteresis",
+                "pt": "msg",
+                "to": "5",
+                "tot": "num"
+            },
+            {
+                "t": "set",
+                "p": "boiler.instant_below",
+                "pt": "msg",
+                "to": "38",
+                "tot": "num"
+            },
+            {
+                "t": "set",
+                "p": "boiler.valve_open",
+                "pt": "msg",
+                "to": "35",
+                "tot": "num"
+            },
+            {
+                "t": "set",
+                "p": "boiler.valve_closed",
+                "pt": "msg",
+                "to": "7",
+                "tot": "num"
+            },
+            {
+                "t": "set",
+                "p": "boiler.telegram_chat_id",
+                "pt": "msg",
+                "to": "8437775921",
+                "tot": "num"
+            },
+            {
+                "t": "set",
+                "p": "boiler.legionella",
+                "pt": "msg",
+                "to": "legionella",
+                "tot": "flow"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 560,
+        "y": 460,
+        "wires": [
+            [
+                "7b8d4496f547b32b"
+            ]
+        ],
+        "id": "0d22ef2bfd8b81fe",
+        "z": "314bf14cc3edfa41",
+        "g": "542721ba2d2d2e5d",
+        "info": "- `solar_threshold` (W): expected solar power next hour above this heats with the element\n- `max_temp` (°C): element off, legionella run done\n- `restart_hysteresis` (°C): element restarts below `max_temp` minus this\n- `instant_below` (°C): doorstroomboiler on below this boiler temperature\n- `valve_open` / `valve_closed` (°C): set point of the valve thermostat\n- `telegram_chat_id`: receives the alerts"
+    },
+    {
+        "type": "switch",
+        "name": "Control enabled?",
+        "property": "boiler.enabled",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "eq",
+                "v": "on",
+                "vt": "str"
+            }
+        ],
+        "checkall": "false",
+        "repair": false,
+        "outputs": 1,
+        "x": 560,
+        "y": 500,
+        "wires": [
+            [
+                "432c92200950bb8e"
+            ]
+        ],
+        "id": "7b8d4496f547b32b",
+        "z": "314bf14cc3edfa41",
+        "g": "542721ba2d2d2e5d"
+    },
+    {
+        "type": "group",
+        "name": "Boiler element",
+        "style": {
+            "label": true
+        },
+        "nodes": [
+            "f177cd6550bfb849",
+            "ce56f5b9823ef9ea",
+            "6e6e6b3d11152ac4",
+            "b5427b2650e04a8b",
+            "ba50a31fe1be831c",
+            "d3c9844bf4d516c4",
+            "8253488905fa6d12",
+            "5c4b5623568bd13a",
+            "b35630e2e1d09388",
+            "d6a309f73beb4269"
+        ],
+        "x": 889,
+        "y": 59,
+        "w": 1291,
+        "h": 152,
+        "id": "bc08c06443f5caf0",
+        "z": "314bf14cc3edfa41"
+    },
+    {
+        "type": "function",
+        "name": "Check boiler temperature",
+        "func": "// logger, usage: log(this, \"\");\nconst log = global.get('logger');\n\n// Without the boiler temperature no safe decision can be made: leave everything as it is\nif (!isFinite(msg.boiler.temp)) {\n    log(this, \"Boiler temperature unavailable\", \"warn\");\n    node.status({ fill: \"red\", shape: \"ring\", text: \"No boiler temperature\" });\n    return null;\n}\n\nnode.status({});\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1040,
+        "y": 120,
+        "wires": [
+            [
+                "ce56f5b9823ef9ea"
+            ]
+        ],
+        "id": "f177cd6550bfb849",
+        "z": "314bf14cc3edfa41",
+        "g": "bc08c06443f5caf0"
+    },
+    {
+        "type": "switch",
+        "name": "Legionella run?",
+        "property": "boiler.legionella",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "true"
+            },
+            {
+                "t": "else"
+            }
+        ],
+        "checkall": "false",
+        "repair": false,
+        "outputs": 2,
+        "x": 1230,
+        "y": 120,
+        "wires": [
+            [
+                "6e6e6b3d11152ac4"
+            ],
+            [
+                "b5427b2650e04a8b"
+            ]
+        ],
+        "id": "ce56f5b9823ef9ea",
+        "z": "314bf14cc3edfa41",
+        "g": "bc08c06443f5caf0"
+    },
+    {
+        "type": "change",
+        "name": "Element on: legionella",
+        "rules": [
+            {
+                "t": "set",
+                "p": "boiler.element",
+                "pt": "msg",
+                "to": "on",
+                "tot": "str"
+            },
+            {
+                "t": "set",
+                "p": "boiler.element_reason",
+                "pt": "msg",
+                "to": "legionella",
+                "tot": "str"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 1430,
+        "y": 100,
+        "wires": [
+            [
+                "8253488905fa6d12"
+            ]
+        ],
+        "id": "6e6e6b3d11152ac4",
+        "z": "314bf14cc3edfa41",
+        "g": "bc08c06443f5caf0"
+    },
+    {
+        "type": "switch",
+        "name": "Enough sun?",
+        "property": "boiler.solar_next_hour > boiler.solar_threshold and boiler.holiday != \"on\"",
+        "propertyType": "jsonata",
+        "rules": [
+            {
+                "t": "true"
+            },
+            {
+                "t": "else"
+            }
+        ],
+        "checkall": "false",
+        "repair": false,
+        "outputs": 2,
+        "x": 1400,
+        "y": 160,
+        "wires": [
+            [
+                "ba50a31fe1be831c"
+            ],
+            [
+                "d3c9844bf4d516c4"
+            ]
+        ],
+        "id": "b5427b2650e04a8b",
+        "z": "314bf14cc3edfa41",
+        "g": "bc08c06443f5caf0"
+    },
+    {
+        "type": "change",
+        "name": "Element on: solar",
+        "rules": [
+            {
+                "t": "set",
+                "p": "boiler.element",
+                "pt": "msg",
+                "to": "on",
+                "tot": "str"
+            },
+            {
+                "t": "set",
+                "p": "boiler.element_reason",
+                "pt": "msg",
+                "to": "solar",
+                "tot": "str"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 1590,
+        "y": 140,
+        "wires": [
+            [
+                "8253488905fa6d12"
+            ]
+        ],
+        "id": "ba50a31fe1be831c",
+        "z": "314bf14cc3edfa41",
+        "g": "bc08c06443f5caf0"
+    },
+    {
+        "type": "change",
+        "name": "Element off: no sun or holiday",
+        "rules": [
+            {
+                "t": "set",
+                "p": "boiler.element",
+                "pt": "msg",
+                "to": "off",
+                "tot": "str"
+            },
+            {
+                "t": "set",
+                "p": "boiler.element_reason",
+                "pt": "msg",
+                "to": "no sun or holiday",
+                "tot": "str"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 1590,
+        "y": 180,
+        "wires": [
+            [
+                "8253488905fa6d12"
+            ]
+        ],
+        "id": "d3c9844bf4d516c4",
+        "z": "314bf14cc3edfa41",
+        "g": "bc08c06443f5caf0"
+    },
+    {
+        "type": "switch",
+        "name": "Warm enough?",
+        "property": "boiler.temp >= boiler.max_temp or\n(boiler.element_state != \"on\" and boiler.temp >= boiler.max_temp - boiler.restart_hysteresis)",
+        "propertyType": "jsonata",
+        "rules": [
+            {
+                "t": "true"
+            },
+            {
+                "t": "else"
+            }
+        ],
+        "checkall": "false",
+        "repair": false,
+        "outputs": 2,
+        "x": 1790,
+        "y": 140,
+        "wires": [
+            [
+                "5c4b5623568bd13a"
+            ],
+            [
+                "b35630e2e1d09388"
+            ]
+        ],
+        "id": "8253488905fa6d12",
+        "z": "314bf14cc3edfa41",
+        "g": "bc08c06443f5caf0"
+    },
+    {
+        "type": "change",
+        "name": "Element off: warm enough",
+        "rules": [
+            {
+                "t": "set",
+                "p": "boiler.element",
+                "pt": "msg",
+                "to": "off",
+                "tot": "str"
+            },
+            {
+                "t": "set",
+                "p": "boiler.element_reason",
+                "pt": "msg",
+                "to": "warm enough",
+                "tot": "str"
+            },
+            {
+                "t": "set",
+                "p": "legionella",
+                "pt": "flow",
+                "to": "false",
+                "tot": "bool"
+            },
+            {
+                "t": "set",
+                "p": "legionella",
+                "pt": "global",
+                "to": "false",
+                "tot": "bool"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 1990,
+        "y": 120,
+        "wires": [
+            [
+                "b35630e2e1d09388"
+            ]
+        ],
+        "id": "5c4b5623568bd13a",
+        "z": "314bf14cc3edfa41",
+        "g": "bc08c06443f5caf0"
+    },
+    {
+        "type": "group",
+        "name": "Doorstroomboiler",
+        "style": {
+            "label": true
+        },
+        "nodes": [
+            "f9b25c7a16c976b2",
+            "a6acea5f25a3e906",
+            "4ffdce4d63d27a2d",
+            "46a98ce57d4161e9",
+            "d5578c2b14546553",
+            "bc17b560d441543f",
+            "e0dc572a8e3f4335",
+            "298ba86fc30b40a1",
+            "920b702e5b85c4b3"
+        ],
+        "x": 910,
+        "y": 199,
+        "w": 980,
+        "h": 172,
+        "id": "ce4d15508d3f7722",
+        "z": "314bf14cc3edfa41"
+    },
+    {
+        "type": "switch",
+        "name": "Use doorstroomboiler?",
+        "property": "boiler.use_instant",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "eq",
+                "v": "on",
+                "vt": "str"
+            },
+            {
+                "t": "else"
+            }
+        ],
+        "checkall": "false",
+        "repair": false,
+        "outputs": 2,
+        "x": 1060,
+        "y": 300,
+        "wires": [
+            [
+                "a6acea5f25a3e906"
+            ],
+            [
+                "e0dc572a8e3f4335"
+            ]
+        ],
+        "id": "f9b25c7a16c976b2",
+        "z": "314bf14cc3edfa41",
+        "g": "ce4d15508d3f7722"
+    },
+    {
+        "type": "switch",
+        "name": "Element heating?",
+        "property": "boiler.element",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "eq",
+                "v": "on",
+                "vt": "str"
+            },
+            {
+                "t": "else"
+            }
+        ],
+        "checkall": "false",
+        "repair": false,
+        "outputs": 2,
+        "x": 1270,
+        "y": 280,
+        "wires": [
+            [
+                "bc17b560d441543f"
+            ],
+            [
+                "4ffdce4d63d27a2d"
+            ]
+        ],
+        "id": "a6acea5f25a3e906",
+        "z": "314bf14cc3edfa41",
+        "g": "ce4d15508d3f7722"
+    },
+    {
+        "type": "switch",
+        "name": "Boiler below 38 °C?",
+        "property": "boiler.temp",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "lt",
+                "v": "boiler.instant_below",
+                "vt": "msg"
+            },
+            {
+                "t": "else"
+            }
+        ],
+        "checkall": "false",
+        "repair": false,
+        "outputs": 2,
+        "x": 1460,
+        "y": 300,
+        "wires": [
+            [
+                "46a98ce57d4161e9"
+            ],
+            [
+                "d5578c2b14546553"
+            ]
+        ],
+        "id": "4ffdce4d63d27a2d",
+        "z": "314bf14cc3edfa41",
+        "g": "ce4d15508d3f7722"
+    },
+    {
+        "type": "change",
+        "name": "Doorstroomboiler on",
+        "rules": [
+            {
+                "t": "set",
+                "p": "boiler.instant",
+                "pt": "msg",
+                "to": "on",
+                "tot": "str"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 1660,
+        "y": 280,
+        "wires": [
+            [
+                "920b702e5b85c4b3"
+            ]
+        ],
+        "id": "46a98ce57d4161e9",
+        "z": "314bf14cc3edfa41",
+        "g": "ce4d15508d3f7722"
+    },
+    {
+        "type": "change",
+        "name": "Doorstroomboiler off: warm enough",
+        "rules": [
+            {
+                "t": "set",
+                "p": "boiler.instant",
+                "pt": "msg",
+                "to": "off",
+                "tot": "str"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 1690,
+        "y": 320,
+        "wires": [
+            [
+                "920b702e5b85c4b3"
+            ]
+        ],
+        "id": "d5578c2b14546553",
+        "z": "314bf14cc3edfa41",
+        "g": "ce4d15508d3f7722"
+    },
+    {
+        "type": "change",
+        "name": "Doorstroomboiler off: element heats",
+        "rules": [
+            {
+                "t": "set",
+                "p": "boiler.instant",
+                "pt": "msg",
+                "to": "off",
+                "tot": "str"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 1500,
+        "y": 240,
+        "wires": [
+            [
+                "920b702e5b85c4b3"
+            ]
+        ],
+        "id": "bc17b560d441543f",
+        "z": "314bf14cc3edfa41",
+        "g": "ce4d15508d3f7722"
+    },
+    {
+        "type": "change",
+        "name": "Doorstroomboiler off: not used",
+        "rules": [
+            {
+                "t": "set",
+                "p": "boiler.instant",
+                "pt": "msg",
+                "to": "off",
+                "tot": "str"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 1290,
+        "y": 340,
+        "wires": [
+            [
+                "920b702e5b85c4b3"
+            ]
+        ],
+        "id": "e0dc572a8e3f4335",
+        "z": "314bf14cc3edfa41",
+        "g": "ce4d15508d3f7722"
+    },
+    {
+        "type": "link out",
+        "name": "Boiler element out",
+        "mode": "link",
+        "links": [
+            "298ba86fc30b40a1"
+        ],
+        "x": 2150,
+        "y": 140,
+        "wires": [],
+        "id": "b35630e2e1d09388",
+        "z": "314bf14cc3edfa41",
+        "g": "bc08c06443f5caf0"
+    },
+    {
+        "type": "link in",
+        "name": "Boiler element in",
+        "links": [
+            "b35630e2e1d09388"
+        ],
+        "x": 940,
+        "y": 300,
+        "wires": [
+            [
+                "f9b25c7a16c976b2"
+            ]
+        ],
+        "id": "298ba86fc30b40a1",
+        "z": "314bf14cc3edfa41",
+        "g": "ce4d15508d3f7722"
+    },
+    {
+        "type": "group",
+        "name": "Heat exchanger valve",
+        "style": {
+            "label": true
+        },
+        "nodes": [
+            "cb6a4260d0d51efb",
+            "1b876a02132e5d15",
+            "71bda7c91844b5fe",
+            "946c0bb025d0b66b",
+            "079e7b9bc88eaefc"
+        ],
+        "x": 910,
+        "y": 379,
+        "w": 540,
+        "h": 112,
+        "id": "c906796be9bc87e5",
+        "z": "314bf14cc3edfa41"
+    },
+    {
+        "type": "switch",
+        "name": "CV water warmer than boiler?",
+        "property": "boiler.cv_temp",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "gt",
+                "v": "boiler.temp",
+                "vt": "msg"
+            },
+            {
+                "t": "else"
+            }
+        ],
+        "checkall": "false",
+        "repair": false,
+        "outputs": 2,
+        "x": 1090,
+        "y": 440,
+        "wires": [
+            [
+                "1b876a02132e5d15"
+            ],
+            [
+                "71bda7c91844b5fe"
+            ]
+        ],
+        "id": "cb6a4260d0d51efb",
+        "z": "314bf14cc3edfa41",
+        "g": "c906796be9bc87e5"
+    },
+    {
+        "type": "change",
+        "name": "Valve open",
+        "rules": [
+            {
+                "t": "set",
+                "p": "boiler.valve_setpoint",
+                "pt": "msg",
+                "to": "boiler.valve_open",
+                "tot": "msg"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 1320,
+        "y": 420,
+        "wires": [
+            [
+                "079e7b9bc88eaefc"
+            ]
+        ],
+        "id": "1b876a02132e5d15",
+        "z": "314bf14cc3edfa41",
+        "g": "c906796be9bc87e5"
+    },
+    {
+        "type": "change",
+        "name": "Valve closed",
+        "rules": [
+            {
+                "t": "set",
+                "p": "boiler.valve_setpoint",
+                "pt": "msg",
+                "to": "boiler.valve_closed",
+                "tot": "msg"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 1320,
+        "y": 460,
+        "wires": [
+            [
+                "079e7b9bc88eaefc"
+            ]
+        ],
+        "id": "71bda7c91844b5fe",
+        "z": "314bf14cc3edfa41",
+        "g": "c906796be9bc87e5"
+    },
+    {
+        "type": "link out",
+        "name": "Doorstroomboiler out",
+        "mode": "link",
+        "links": [
+            "946c0bb025d0b66b"
+        ],
+        "x": 1860,
+        "y": 300,
+        "wires": [],
+        "id": "920b702e5b85c4b3",
+        "z": "314bf14cc3edfa41",
+        "g": "ce4d15508d3f7722"
+    },
+    {
+        "type": "link in",
+        "name": "Doorstroomboiler in",
+        "links": [
+            "920b702e5b85c4b3"
+        ],
+        "x": 940,
+        "y": 440,
+        "wires": [
+            [
+                "cb6a4260d0d51efb"
+            ]
+        ],
+        "id": "946c0bb025d0b66b",
+        "z": "314bf14cc3edfa41",
+        "g": "c906796be9bc87e5"
+    },
+    {
+        "type": "group",
+        "name": "Output",
+        "style": {
+            "label": true
+        },
+        "nodes": [
+            "24f850ccfe7ad9cc",
+            "4249ab532a39fecd",
+            "bbf88fbd27f0d767",
+            "28c36de7fbc7e2a1",
+            "3a71dc42bf5b1406",
+            "b892c048317d0cb2",
+            "426e6035534cce22",
+            "67e9c33f4a0bef4f",
+            "9350a7ea16017efa",
+            "a03dcf4df6171d7a",
+            "58836170b542309d",
+            "49acffa6f3865d9a",
+            "291761dffa25c053",
+            "7a6a6541412a7496"
+        ],
+        "x": 910,
+        "y": 539,
+        "w": 729,
+        "h": 272,
+        "id": "0fb11fd798c6fb94",
+        "z": "314bf14cc3edfa41"
+    },
+    {
+        "type": "switch",
+        "name": "Element off?",
+        "property": "boiler.element = \"off\" and boiler.element_state = \"on\"",
+        "propertyType": "jsonata",
+        "rules": [
+            {
+                "t": "true"
+            }
+        ],
+        "checkall": "false",
+        "repair": false,
+        "outputs": 1,
+        "x": 1070,
+        "y": 580,
+        "wires": [
+            [
+                "426e6035534cce22"
+            ]
+        ],
+        "id": "24f850ccfe7ad9cc",
+        "z": "314bf14cc3edfa41",
+        "g": "0fb11fd798c6fb94"
+    },
+    {
+        "type": "switch",
+        "name": "Doorstroomboiler off?",
+        "property": "boiler.instant = \"off\" and boiler.instant_state = \"on\"",
+        "propertyType": "jsonata",
+        "rules": [
+            {
+                "t": "true"
+            }
+        ],
+        "checkall": "false",
+        "repair": false,
+        "outputs": 1,
+        "x": 1090,
+        "y": 620,
+        "wires": [
+            [
+                "67e9c33f4a0bef4f"
+            ]
+        ],
+        "id": "4249ab532a39fecd",
+        "z": "314bf14cc3edfa41",
+        "g": "0fb11fd798c6fb94"
+    },
+    {
+        "type": "delay",
+        "name": "Wait 1 s",
+        "pauseType": "delay",
+        "timeout": "1",
+        "timeoutUnits": "seconds",
+        "rate": "1",
+        "nbRateUnits": "1",
+        "rateUnits": "second",
+        "randomFirst": "1",
+        "randomLast": "5",
+        "randomUnits": "seconds",
+        "drop": false,
+        "allowrate": false,
+        "outputs": 1,
+        "x": 1050,
+        "y": 660,
+        "wires": [
+            [
+                "28c36de7fbc7e2a1",
+                "3a71dc42bf5b1406"
+            ]
+        ],
+        "id": "bbf88fbd27f0d767",
+        "z": "314bf14cc3edfa41",
+        "g": "0fb11fd798c6fb94"
+    },
+    {
+        "type": "switch",
+        "name": "Element on?",
+        "property": "boiler.element = \"on\" and boiler.element_state = \"off\"",
+        "propertyType": "jsonata",
+        "rules": [
+            {
+                "t": "true"
+            }
+        ],
+        "checkall": "false",
+        "repair": false,
+        "outputs": 1,
+        "x": 1220,
+        "y": 660,
+        "wires": [
+            [
+                "9350a7ea16017efa"
+            ]
+        ],
+        "id": "28c36de7fbc7e2a1",
+        "z": "314bf14cc3edfa41",
+        "g": "0fb11fd798c6fb94"
+    },
+    {
+        "type": "switch",
+        "name": "Doorstroomboiler on?",
+        "property": "boiler.instant = \"on\" and boiler.instant_state = \"off\"",
+        "propertyType": "jsonata",
+        "rules": [
+            {
+                "t": "true"
+            }
+        ],
+        "checkall": "false",
+        "repair": false,
+        "outputs": 1,
+        "x": 1240,
+        "y": 700,
+        "wires": [
+            [
+                "a03dcf4df6171d7a"
+            ]
+        ],
+        "id": "3a71dc42bf5b1406",
+        "z": "314bf14cc3edfa41",
+        "g": "0fb11fd798c6fb94"
+    },
+    {
+        "type": "switch",
+        "name": "Valve change?",
+        "property": "boiler.valve.attributes.temperature != boiler.valve_setpoint",
+        "propertyType": "jsonata",
+        "rules": [
+            {
+                "t": "true"
+            }
+        ],
+        "checkall": "false",
+        "repair": false,
+        "outputs": 1,
+        "x": 1070,
+        "y": 740,
+        "wires": [
+            [
+                "58836170b542309d"
+            ]
+        ],
+        "id": "b892c048317d0cb2",
+        "z": "314bf14cc3edfa41",
+        "g": "0fb11fd798c6fb94"
+    },
+    {
+        "type": "api-call-service",
+        "name": "Switch element off",
+        "server": "5ca87be2.7c7d84",
+        "version": 7,
+        "debugenabled": false,
+        "action": "switch.turn_off",
+        "floorId": [],
+        "areaId": [],
+        "deviceId": [],
+        "entityId": [
+            "switch.sonoff_10023c6bdb"
+        ],
+        "labelId": [],
+        "data": "",
+        "dataType": "jsonata",
+        "mergeContext": "",
+        "mustacheAltTags": false,
+        "outputProperties": [],
+        "queue": "none",
+        "blockInputOverrides": true,
+        "domain": "switch",
+        "service": "turn_off",
+        "x": 1320,
+        "y": 580,
+        "wires": [
+            []
+        ],
+        "id": "426e6035534cce22",
+        "z": "314bf14cc3edfa41",
+        "g": "0fb11fd798c6fb94"
+    },
+    {
+        "type": "api-call-service",
+        "name": "Switch doorstroomboiler off",
+        "server": "5ca87be2.7c7d84",
+        "version": 7,
+        "debugenabled": false,
+        "action": "switch.turn_off",
+        "floorId": [],
+        "areaId": [],
+        "deviceId": [],
+        "entityId": [
+            "switch.sonoff_1002736ed7"
+        ],
+        "labelId": [],
+        "data": "",
+        "dataType": "jsonata",
+        "mergeContext": "",
+        "mustacheAltTags": false,
+        "outputProperties": [],
+        "queue": "none",
+        "blockInputOverrides": true,
+        "domain": "switch",
+        "service": "turn_off",
+        "x": 1340,
+        "y": 620,
+        "wires": [
+            []
+        ],
+        "id": "67e9c33f4a0bef4f",
+        "z": "314bf14cc3edfa41",
+        "g": "0fb11fd798c6fb94"
+    },
+    {
+        "type": "api-call-service",
+        "name": "Switch element on",
+        "server": "5ca87be2.7c7d84",
+        "version": 7,
+        "debugenabled": false,
+        "action": "switch.turn_on",
+        "floorId": [],
+        "areaId": [],
+        "deviceId": [],
+        "entityId": [
+            "switch.sonoff_10023c6bdb"
+        ],
+        "labelId": [],
+        "data": "",
+        "dataType": "jsonata",
+        "mergeContext": "",
+        "mustacheAltTags": false,
+        "outputProperties": [],
+        "queue": "none",
+        "blockInputOverrides": true,
+        "domain": "switch",
+        "service": "turn_on",
+        "x": 1460,
+        "y": 660,
+        "wires": [
+            []
+        ],
+        "id": "9350a7ea16017efa",
+        "z": "314bf14cc3edfa41",
+        "g": "0fb11fd798c6fb94"
+    },
+    {
+        "type": "api-call-service",
+        "name": "Switch doorstroomboiler on",
+        "server": "5ca87be2.7c7d84",
+        "version": 7,
+        "debugenabled": false,
+        "action": "switch.turn_on",
+        "floorId": [],
+        "areaId": [],
+        "deviceId": [],
+        "entityId": [
+            "switch.sonoff_1002736ed7"
+        ],
+        "labelId": [],
+        "data": "",
+        "dataType": "jsonata",
+        "mergeContext": "",
+        "mustacheAltTags": false,
+        "outputProperties": [],
+        "queue": "none",
+        "blockInputOverrides": true,
+        "domain": "switch",
+        "service": "turn_on",
+        "x": 1480,
+        "y": 700,
+        "wires": [
+            []
+        ],
+        "id": "a03dcf4df6171d7a",
+        "z": "314bf14cc3edfa41",
+        "g": "0fb11fd798c6fb94"
+    },
+    {
+        "type": "api-call-service",
+        "name": "Set valve",
+        "server": "5ca87be2.7c7d84",
+        "version": 7,
+        "debugenabled": false,
+        "action": "climate.set_temperature",
+        "floorId": [],
+        "areaId": [],
+        "deviceId": [],
+        "entityId": [
+            "climate.heatexchanger_valve_thermostat"
+        ],
+        "labelId": [],
+        "data": "{\"temperature\": boiler.valve_setpoint}",
+        "dataType": "jsonata",
+        "mergeContext": "",
+        "mustacheAltTags": false,
+        "outputProperties": [],
+        "queue": "none",
+        "blockInputOverrides": true,
+        "domain": "climate",
+        "service": "set_temperature",
+        "x": 1280,
+        "y": 740,
+        "wires": [
+            []
+        ],
+        "id": "58836170b542309d",
+        "z": "314bf14cc3edfa41",
+        "g": "0fb11fd798c6fb94"
+    },
+    {
+        "type": "function",
+        "name": "Status",
+        "func": "// Status\nconst b = msg.boiler;\nconst valve = b.valve_setpoint === b.valve_open ? \"open\" : \"closed\";\nnode.status({\n    fill: b.element === \"on\" ? \"red\" : \"grey\", shape: \"dot\",\n    text: `${b.temp} °C | element ${b.element} (${b.element_reason}) | doorstroomboiler ${b.instant} | valve ${valve}`\n});\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1050,
+        "y": 780,
+        "wires": [
+            [
+                "291761dffa25c053"
+            ]
+        ],
+        "id": "49acffa6f3865d9a",
+        "z": "314bf14cc3edfa41",
+        "g": "0fb11fd798c6fb94"
+    },
+    {
+        "type": "debug",
+        "name": "Boiler",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "boiler",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1200,
+        "y": 780,
+        "wires": [],
+        "id": "291761dffa25c053",
+        "z": "314bf14cc3edfa41",
+        "g": "0fb11fd798c6fb94"
+    },
+    {
+        "type": "link out",
+        "name": "Heat exchanger valve out",
+        "mode": "link",
+        "links": [
+            "7a6a6541412a7496"
+        ],
+        "x": 1420,
+        "y": 440,
+        "wires": [],
+        "id": "079e7b9bc88eaefc",
+        "z": "314bf14cc3edfa41",
+        "g": "c906796be9bc87e5"
+    },
+    {
+        "type": "link in",
+        "name": "Heat exchanger valve in",
+        "links": [
+            "079e7b9bc88eaefc"
+        ],
+        "x": 940,
+        "y": 660,
+        "wires": [
+            [
+                "24f850ccfe7ad9cc",
+                "4249ab532a39fecd",
+                "bbf88fbd27f0d767",
+                "b892c048317d0cb2",
+                "49acffa6f3865d9a"
+            ]
+        ],
+        "id": "7a6a6541412a7496",
+        "z": "314bf14cc3edfa41",
+        "g": "0fb11fd798c6fb94"
+    },
+    {
+        "type": "group",
+        "name": "Alerts",
+        "style": {
+            "label": true
+        },
+        "nodes": [
+            "bd191a9abecdc686",
+            "b4763c8e7086fe56",
+            "1a7e6ef1fc4785a6",
+            "cf755d285f72d3de",
+            "406cc34381bda1fc",
+            "e9a5db6cdfca2c06",
+            "e3e2bcaa8e5aa2b0",
+            "19e8f4993c9895a4",
+            "3a060b148460c4a4",
+            "869075b5b11869a7",
+            "397bc767f320fdf1",
+            "7cf84b17c4cfab2e",
+            "41c5de351c2f4ed3",
+            "30cf7b4ab3addd84",
+            "d5b3687d12616acc",
+            "eb9e4aed8b98f950",
+            "daaa04ef68edb8de"
+        ],
+        "x": 121,
+        "y": 579,
+        "w": 926,
+        "h": 232,
+        "id": "72965380bcf7a2db",
+        "z": "314bf14cc3edfa41"
+    },
+    {
+        "type": "telegram sender",
+        "name": "Telegram",
+        "bot": "89698e9fbebd963f",
+        "haserroroutput": false,
+        "outputs": 1,
+        "x": 960,
+        "y": 700,
+        "wires": [
+            []
+        ],
+        "id": "bd191a9abecdc686",
+        "z": "314bf14cc3edfa41",
+        "g": "72965380bcf7a2db"
+    },
+    {
+        "type": "switch",
+        "name": "Boiler temperature unavailable?",
+        "property": "boiler.temp_state in [\"unknown\", \"unavailable\"]",
+        "propertyType": "jsonata",
+        "rules": [
+            {
+                "t": "true"
+            }
+        ],
+        "checkall": "false",
+        "repair": false,
+        "outputs": 1,
+        "x": 300,
+        "y": 620,
+        "wires": [
+            [
+                "1a7e6ef1fc4785a6"
+            ]
+        ],
+        "id": "b4763c8e7086fe56",
+        "z": "314bf14cc3edfa41",
+        "g": "72965380bcf7a2db"
+    },
+    {
+        "type": "change",
+        "name": "Message: boiler temp unavailable",
+        "rules": [
+            {
+                "t": "set",
+                "p": "payload",
+                "pt": "msg",
+                "to": "{\n    \"chatId\": boiler.telegram_chat_id,\n    \"type\": \"message\",\n    \"content\": \"Boiler temp unavailable. Please check for working boiler!\"\n}",
+                "tot": "jsonata"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 560,
+        "y": 620,
+        "wires": [
+            [
+                "cf755d285f72d3de"
+            ]
+        ],
+        "id": "1a7e6ef1fc4785a6",
+        "z": "314bf14cc3edfa41",
+        "g": "72965380bcf7a2db"
+    },
+    {
+        "type": "delay",
+        "name": "Max 1 per day",
+        "pauseType": "rate",
+        "timeout": "1",
+        "timeoutUnits": "seconds",
+        "rate": "1",
+        "nbRateUnits": "1",
+        "rateUnits": "day",
+        "randomFirst": "1",
+        "randomLast": "5",
+        "randomUnits": "seconds",
+        "drop": true,
+        "allowrate": false,
+        "outputs": 1,
+        "x": 780,
+        "y": 620,
+        "wires": [
+            [
+                "bd191a9abecdc686"
+            ]
+        ],
+        "id": "cf755d285f72d3de",
+        "z": "314bf14cc3edfa41",
+        "g": "72965380bcf7a2db"
+    },
+    {
+        "type": "switch",
+        "name": "CV temperature unavailable?",
+        "property": "boiler.cv_state in [\"unknown\", \"unavailable\"]",
+        "propertyType": "jsonata",
+        "rules": [
+            {
+                "t": "true"
+            }
+        ],
+        "checkall": "false",
+        "repair": false,
+        "outputs": 1,
+        "x": 300,
+        "y": 660,
+        "wires": [
+            [
+                "e9a5db6cdfca2c06"
+            ]
+        ],
+        "id": "406cc34381bda1fc",
+        "z": "314bf14cc3edfa41",
+        "g": "72965380bcf7a2db"
+    },
+    {
+        "type": "change",
+        "name": "Message: cv water temp unavailable",
+        "rules": [
+            {
+                "t": "set",
+                "p": "payload",
+                "pt": "msg",
+                "to": "{\n    \"chatId\": boiler.telegram_chat_id,\n    \"type\": \"message\",\n    \"content\": \"CV water temp unavailable. Please check for working boiler!\"\n}",
+                "tot": "jsonata"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 560,
+        "y": 660,
+        "wires": [
+            [
+                "e3e2bcaa8e5aa2b0"
+            ]
+        ],
+        "id": "e9a5db6cdfca2c06",
+        "z": "314bf14cc3edfa41",
+        "g": "72965380bcf7a2db"
+    },
+    {
+        "type": "delay",
+        "name": "Max 1 per day",
+        "pauseType": "rate",
+        "timeout": "1",
+        "timeoutUnits": "seconds",
+        "rate": "1",
+        "nbRateUnits": "1",
+        "rateUnits": "day",
+        "randomFirst": "1",
+        "randomLast": "5",
+        "randomUnits": "seconds",
+        "drop": true,
+        "allowrate": false,
+        "outputs": 1,
+        "x": 780,
+        "y": 660,
+        "wires": [
+            [
+                "bd191a9abecdc686"
+            ]
+        ],
+        "id": "e3e2bcaa8e5aa2b0",
+        "z": "314bf14cc3edfa41",
+        "g": "72965380bcf7a2db"
+    },
+    {
+        "type": "switch",
+        "name": "Valve unavailable?",
+        "property": "boiler.valve.state in [\"unavailable\", \"heat/cool\"]",
+        "propertyType": "jsonata",
+        "rules": [
+            {
+                "t": "true"
+            }
+        ],
+        "checkall": "false",
+        "repair": false,
+        "outputs": 1,
+        "x": 300,
+        "y": 700,
+        "wires": [
+            [
+                "3a060b148460c4a4"
+            ]
+        ],
+        "id": "19e8f4993c9895a4",
+        "z": "314bf14cc3edfa41",
+        "g": "72965380bcf7a2db"
+    },
+    {
+        "type": "change",
+        "name": "Message: valve heatexchanger unavailable",
+        "rules": [
+            {
+                "t": "set",
+                "p": "payload",
+                "pt": "msg",
+                "to": "{\n    \"chatId\": boiler.telegram_chat_id,\n    \"type\": \"message\",\n    \"content\": \"Valve heatExchanger unavailable. Please check for working boiler!\"\n}",
+                "tot": "jsonata"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 560,
+        "y": 700,
+        "wires": [
+            [
+                "869075b5b11869a7"
+            ]
+        ],
+        "id": "3a060b148460c4a4",
+        "z": "314bf14cc3edfa41",
+        "g": "72965380bcf7a2db"
+    },
+    {
+        "type": "delay",
+        "name": "Max 1 per 3 h",
+        "pauseType": "rate",
+        "timeout": "1",
+        "timeoutUnits": "seconds",
+        "rate": "1",
+        "nbRateUnits": "3",
+        "rateUnits": "hour",
+        "randomFirst": "1",
+        "randomLast": "5",
+        "randomUnits": "seconds",
+        "drop": true,
+        "allowrate": false,
+        "outputs": 1,
+        "x": 780,
+        "y": 700,
+        "wires": [
+            [
+                "bd191a9abecdc686"
+            ]
+        ],
+        "id": "869075b5b11869a7",
+        "z": "314bf14cc3edfa41",
+        "g": "72965380bcf7a2db"
+    },
+    {
+        "type": "switch",
+        "name": "Element unavailable?",
+        "property": "boiler.element_state = \"unavailable\"",
+        "propertyType": "jsonata",
+        "rules": [
+            {
+                "t": "true"
+            }
+        ],
+        "checkall": "false",
+        "repair": false,
+        "outputs": 1,
+        "x": 300,
+        "y": 740,
+        "wires": [
+            [
+                "7cf84b17c4cfab2e"
+            ]
+        ],
+        "id": "397bc767f320fdf1",
+        "z": "314bf14cc3edfa41",
+        "g": "72965380bcf7a2db"
+    },
+    {
+        "type": "change",
+        "name": "Message: boiler unavailable",
+        "rules": [
+            {
+                "t": "set",
+                "p": "payload",
+                "pt": "msg",
+                "to": "{\n    \"chatId\": boiler.telegram_chat_id,\n    \"type\": \"message\",\n    \"content\": \"Boiler unavailable. Please check for working boiler!\"\n}",
+                "tot": "jsonata"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 560,
+        "y": 740,
+        "wires": [
+            [
+                "41c5de351c2f4ed3"
+            ]
+        ],
+        "id": "7cf84b17c4cfab2e",
+        "z": "314bf14cc3edfa41",
+        "g": "72965380bcf7a2db"
+    },
+    {
+        "type": "delay",
+        "name": "Max 1 per day",
+        "pauseType": "rate",
+        "timeout": "1",
+        "timeoutUnits": "seconds",
+        "rate": "1",
+        "nbRateUnits": "1",
+        "rateUnits": "day",
+        "randomFirst": "1",
+        "randomLast": "5",
+        "randomUnits": "seconds",
+        "drop": true,
+        "allowrate": false,
+        "outputs": 1,
+        "x": 780,
+        "y": 740,
+        "wires": [
+            [
+                "bd191a9abecdc686"
+            ]
+        ],
+        "id": "41c5de351c2f4ed3",
+        "z": "314bf14cc3edfa41",
+        "g": "72965380bcf7a2db"
+    },
+    {
+        "type": "switch",
+        "name": "Doorstroomboiler unavailable?",
+        "property": "boiler.use_instant = \"on\" and boiler.instant_state = \"unavailable\"",
+        "propertyType": "jsonata",
+        "rules": [
+            {
+                "t": "true"
+            }
+        ],
+        "checkall": "false",
+        "repair": false,
+        "outputs": 1,
+        "x": 300,
+        "y": 780,
+        "wires": [
+            [
+                "d5b3687d12616acc"
+            ]
+        ],
+        "id": "30cf7b4ab3addd84",
+        "z": "314bf14cc3edfa41",
+        "g": "72965380bcf7a2db"
+    },
+    {
+        "type": "change",
+        "name": "Message: instant boiler unavailable",
+        "rules": [
+            {
+                "t": "set",
+                "p": "payload",
+                "pt": "msg",
+                "to": "{\n    \"chatId\": boiler.telegram_chat_id,\n    \"type\": \"message\",\n    \"content\": \"Instant boiler unavailable. Please check for working boiler!\"\n}",
+                "tot": "jsonata"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 560,
+        "y": 780,
+        "wires": [
+            [
+                "eb9e4aed8b98f950"
+            ]
+        ],
+        "id": "d5b3687d12616acc",
+        "z": "314bf14cc3edfa41",
+        "g": "72965380bcf7a2db"
+    },
+    {
+        "type": "delay",
+        "name": "Max 1 per day",
+        "pauseType": "rate",
+        "timeout": "1",
+        "timeoutUnits": "seconds",
+        "rate": "1",
+        "nbRateUnits": "1",
+        "rateUnits": "day",
+        "randomFirst": "1",
+        "randomLast": "5",
+        "randomUnits": "seconds",
+        "drop": true,
+        "allowrate": false,
+        "outputs": 1,
+        "x": 780,
+        "y": 780,
+        "wires": [
+            [
+                "bd191a9abecdc686"
+            ]
+        ],
+        "id": "eb9e4aed8b98f950",
+        "z": "314bf14cc3edfa41",
+        "g": "72965380bcf7a2db"
+    },
+    {
+        "type": "link out",
+        "name": "Input out",
+        "mode": "link",
+        "links": [
+            "d6a309f73beb4269",
+            "daaa04ef68edb8de"
+        ],
+        "x": 1020,
+        "y": 500,
+        "wires": [],
+        "id": "432c92200950bb8e",
+        "z": "314bf14cc3edfa41",
+        "g": "542721ba2d2d2e5d"
+    },
+    {
+        "type": "link in",
+        "name": "Input in",
+        "links": [
+            "432c92200950bb8e"
+        ],
+        "x": 940,
+        "y": 120,
+        "wires": [
+            [
+                "f177cd6550bfb849"
+            ]
+        ],
+        "id": "d6a309f73beb4269",
+        "z": "314bf14cc3edfa41",
+        "g": "bc08c06443f5caf0"
+    },
+    {
+        "type": "link in",
+        "name": "Input in",
+        "links": [
+            "432c92200950bb8e"
+        ],
+        "x": 170,
+        "y": 700,
+        "wires": [
+            [
+                "b4763c8e7086fe56",
+                "406cc34381bda1fc",
+                "19e8f4993c9895a4",
+                "397bc767f320fdf1",
+                "30cf7b4ab3addd84"
+            ]
+        ],
+        "id": "daaa04ef68edb8de",
+        "z": "314bf14cc3edfa41",
+        "g": "72965380bcf7a2db"
+    },
+    {
+        "type": "group",
+        "name": "Unhandled exceptions",
+        "style": {
+            "label": true
+        },
+        "nodes": [
+            "e0dde716d5c15a6e",
+            "5a7391b1ee84fa61",
+            "bd0b473a427576e2"
+        ],
+        "x": 19,
+        "y": 860,
+        "w": 290,
+        "h": 72,
+        "id": "8f6d4175c3f42f09",
+        "z": "314bf14cc3edfa41"
+    },
+    {
+        "type": "debug",
+        "name": "Errors",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 230,
+        "y": 901,
+        "wires": [],
+        "id": "e0dde716d5c15a6e",
+        "z": "314bf14cc3edfa41",
+        "g": "8f6d4175c3f42f09"
+    },
+    {
+        "type": "function",
+        "name": "Unhandled Exception",
+        "func": "// Log unhandled exception\nconst handle = global.get('unhandledException');\nif(handle) handle(this);\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 150,
+        "y": 901,
+        "wires": [
+            [
+                "e0dde716d5c15a6e"
+            ]
+        ],
+        "id": "5a7391b1ee84fa61",
+        "z": "314bf14cc3edfa41",
+        "g": "8f6d4175c3f42f09"
+    },
+    {
+        "type": "catch",
+        "name": "",
+        "scope": null,
+        "uncaught": false,
+        "x": 65,
+        "y": 901,
+        "wires": [
+            [
+                "5a7391b1ee84fa61"
+            ]
+        ],
+        "id": "bd0b473a427576e2",
+        "z": "314bf14cc3edfa41",
+        "g": "8f6d4175c3f42f09"
+    },
+    {
+        "id": "5ca87be2.7c7d84",
+        "type": "server",
+        "name": "Home Assistant!",
+        "version": 6,
+        "addon": true,
+        "rejectUnauthorizedCerts": true,
+        "ha_boolean": [
+            "y",
+            "yes",
+            "true",
+            "on",
+            "home",
+            "open"
+        ],
+        "connectionDelay": true,
+        "cacheJson": true,
+        "heartbeat": false,
+        "heartbeatInterval": 30,
+        "areaSelector": "friendlyName",
+        "deviceSelector": "friendlyName",
+        "entitySelector": "friendlyName",
+        "statusSeparator": "at: ",
+        "statusYear": "hidden",
+        "statusMonth": "short",
+        "statusDay": "numeric",
+        "statusHourCycle": "h23",
+        "statusTimeFormat": "h:m",
+        "enableGlobalContextStore": true
+    },
+    {
+        "id": "89698e9fbebd963f",
+        "type": "telegram bot",
+        "botname": "Notification_4910_Bot",
+        "usernames": "",
+        "chatids": "",
+        "baseapiurl": "",
+        "updatemode": "polling",
+        "pollinterval": 300,
+        "usesocks": false,
+        "sockshost": "",
+        "socksport": 6667,
+        "socksusername": "anonymous",
+        "sockspassword": "",
+        "bothost": "",
+        "botpath": "",
+        "localbotport": 8443,
+        "publicbotport": 8443,
+        "privatekey": "",
+        "certificate": "",
+        "useselfsignedcertificate": false,
+        "sslterminated": false,
+        "verboselogging": false
+    },
+    {
+        "id": "64e885e9b17e5743",
+        "type": "global-config",
+        "env": [],
+        "modules": {
+            "node-red-contrib-home-assistant-websocket": "0.81.0",
+            "node-red-contrib-telegrambot": "10.0.9"
+        }
+    }
+]

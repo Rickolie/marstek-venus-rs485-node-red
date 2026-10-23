@@ -122,6 +122,28 @@ views:
       - type: grid
         cards:
           - type: heading
+            heading: Boiler
+            heading_style: title
+            icon: mdi:water-boiler
+          - type: entities
+            entities:
+              - entity: input_boolean.boiler_control_enabled
+              - entity: input_boolean.boiler_use_instant_boiler
+              - entity: sensor.thermostat_heatexchanger_w_offset
+                name: Boiler temperature
+              - entity: switch.sonoff_10023c6bdb
+                name: Boiler element
+              - entity: switch.sonoff_1002736ed7
+                name: Doorstroomboiler
+              - entity: climate.heatexchanger_valve_thermostat
+                name: Heat exchanger valve
+              - entity: sensor.power_production_next_hour
+                name: Expected solar power next hour
+              - entity: input_boolean.onholiday
+
+      - type: grid
+        cards:
+          - type: heading
             heading: History
             heading_style: title
             icon: mdi:history
