@@ -1,0 +1,162 @@
+[
+    {
+        "id": "a1b2c3d4e5f60001",
+        "type": "tab",
+        "label": "Home Heating alerts",
+        "disabled": false,
+        "info": "Forwards the Home Heating watchdog alerts from MQTT to Telegram.\nReplace the Telegram sender by a Signal node to use Signal.",
+        "env": []
+    },
+    {
+        "id": "a1b2c3d4e5f60002",
+        "type": "comment",
+        "z": "a1b2c3d4e5f60001",
+        "name": "Home Heating alerts (readme)",
+        "info": "# Home Heating alerts\n\n- `home_heating/alert`: a check changed (error / warning / ok again), or is still failing (repeat)\n- `home_heating/heartbeat`: every run. No heartbeat for 5 minutes: Home Assistant or the integration stopped\n\nSet your Telegram chat id in **Settings** and select your bot in the Telegram sender.\nFor Signal: replace the Telegram sender by your Signal node, `msg.payload.content` holds the text.",
+        "x": 170,
+        "y": 40,
+        "wires": []
+    },
+    {
+        "id": "a1b2c3d4e5f60003",
+        "type": "mqtt in",
+        "z": "a1b2c3d4e5f60001",
+        "name": "Alerts",
+        "topic": "home_heating/alert",
+        "qos": "1",
+        "datatype": "json",
+        "broker": "a1b2c3d4e5f600b1",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 110,
+        "y": 120,
+        "wires": [
+            [
+                "a1b2c3d4e5f60005"
+            ]
+        ]
+    },
+    {
+        "id": "a1b2c3d4e5f60004",
+        "type": "mqtt in",
+        "z": "a1b2c3d4e5f60001",
+        "name": "Heartbeat",
+        "topic": "home_heating/heartbeat",
+        "qos": "0",
+        "datatype": "json",
+        "broker": "a1b2c3d4e5f600b1",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 120,
+        "y": 200,
+        "wires": [
+            [
+                "a1b2c3d4e5f60006"
+            ]
+        ]
+    },
+    {
+        "id": "a1b2c3d4e5f60006",
+        "type": "trigger",
+        "z": "a1b2c3d4e5f60001",
+        "name": "No heartbeat for 5 min",
+        "op1": "",
+        "op2": "{\"title\":\"Home Heating stopped: no heartbeat for 5 minutes\",\"state\":\"error\"}",
+        "op1type": "nul",
+        "op2type": "json",
+        "duration": "5",
+        "extend": true,
+        "overrideDelay": false,
+        "units": "min",
+        "reset": "",
+        "bytopic": "all",
+        "topic": "topic",
+        "outputs": 1,
+        "x": 330,
+        "y": 200,
+        "wires": [
+            [
+                "a1b2c3d4e5f60005"
+            ]
+        ]
+    },
+    {
+        "id": "a1b2c3d4e5f60005",
+        "type": "change",
+        "z": "a1b2c3d4e5f60001",
+        "name": "Settings",
+        "rules": [
+            {
+                "t": "set",
+                "p": "chat_id",
+                "pt": "msg",
+                "to": "YOUR_TELEGRAM_CHAT_ID",
+                "tot": "str"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 540,
+        "y": 160,
+        "wires": [
+            [
+                "a1b2c3d4e5f60007"
+            ]
+        ]
+    },
+    {
+        "id": "a1b2c3d4e5f60007",
+        "type": "function",
+        "z": "a1b2c3d4e5f60001",
+        "name": "Telegram message",
+        "func": "// One message per alert. Recoveries get a check mark, problems a warning sign\nconst alert = msg.payload;\nconst icon = alert.state === \"ok\" ? \"✅\" : alert.state === \"error\" ? \"🚨\" : \"⚠️\";\nconst repeat = alert.repeat ? \" (still)\" : \"\";\n\nmsg.payload = {\n    chatId: msg.chat_id,\n    type: \"message\",\n    content: `${icon} ${alert.title}${repeat}`,\n};\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 730,
+        "y": 160,
+        "wires": [
+            [
+                "a1b2c3d4e5f60008"
+            ]
+        ]
+    },
+    {
+        "id": "a1b2c3d4e5f60008",
+        "type": "telegram sender",
+        "z": "a1b2c3d4e5f60001",
+        "name": "Telegram",
+        "bot": "",
+        "haserroroutput": false,
+        "outputs": 1,
+        "x": 910,
+        "y": 160,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "a1b2c3d4e5f600b1",
+        "type": "mqtt-broker",
+        "name": "Home Assistant MQTT",
+        "broker": "core-mosquitto",
+        "port": "1883",
+        "clientid": "",
+        "autoConnect": true,
+        "usetls": false,
+        "protocolVersion": "4",
+        "keepalive": "60",
+        "cleansession": true,
+        "autoUnsubscribe": true
+    }
+]

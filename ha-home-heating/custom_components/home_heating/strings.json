@@ -1,0 +1,31 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Home Heating",
+        "description": "Heat pump feedforward, boiler, ventilation and watchdogs. After adding, open Home Heating in the sidebar to choose your sensors and settings. Nothing is switched until you turn on 'Write to devices'."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Home Heating is already set up."
+    }
+  },
+  "services": {
+    "recalculate_history": {
+      "name": "Recalculate history",
+      "description": "Recalculate the daily averages from all history now."
+    },
+    "refresh_forecast": {
+      "name": "Refresh forecast",
+      "description": "Fetch the weather forecast now."
+    },
+    "start_legionella": {
+      "name": "Start legionella run",
+      "description": "Heat the boiler to the legionella temperature now."
+    },
+    "plan_prices": {
+      "name": "Plan cheapest prices",
+      "description": "Make the plan for heating the boiler on the cheapest prices again."
+    }
+  }
+}
